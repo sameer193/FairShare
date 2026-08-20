@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Group hub — SplitLedger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<main class="page">
+  <div class="page-head">
+    <h1 id="group-title">Group</h1>
+    <p id="group-sub"></p>
+  </div>
+
+  <div class="stat-grid" id="stat-grid"></div>
+
+  <section class="card">
+    <h2>Go to</h2>
+    <div class="hub-grid">
+      <a class="hub-tile" href="members.html">
+        <span class="h-icon">👥</span>
+        <b>Members</b>
+        <span>Add or remove people in this group</span>
+      </a>
+      <a class="hub-tile" href="expense.html">
+        <span class="h-icon">🧾</span>
+        <b>Add expense</b>
+        <span>Log a bill and split it</span>
+      </a>
+      <a class="hub-tile" href="ledger.html">
+        <span class="h-icon">📒</span>
+        <b>Ledger</b>
+        <span>See every expense logged so far</span>
+      </a>
+      <a class="hub-tile" href="balances.html">
+        <span class="h-icon">⚖️</span>
+        <b>Balances</b>
+        <span>Who's owed, who owes</span>
+      </a>
+      <a class="hub-tile" href="settlement.html">
+        <span class="h-icon">🤝</span>
+        <b>Settlement</b>
+        <span>Fewest possible payments to clear up</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Danger zone</h2>
+    <p class="hint-line">Deleting a group removes it and every expense in it for good.</p>
+    <button class="btn-danger-sm" id="btn-del-group">Delete this group</button>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="core.js"></script>
+<script src="group.js"></script>
+</body>
+</html>

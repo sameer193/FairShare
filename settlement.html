@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Settlement — SplitLedger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Settlement</h1>
+    <p>The fewest payments needed to clear every balance — but nothing is final until someone confirms it.</p>
+  </div>
+
+  <section class="card settle-card">
+    <h2>Optimized settlement plan</h2>
+    <p class="settle-sub">Greedy debt-matching keeps the number of transfers to a minimum — at most (members − 1). Tap "Mark as paid" once the money has actually moved.</p>
+    <div class="slips" id="settlement-list"></div>
+  </section>
+
+  <div class="grid-2">
+    <section class="card">
+      <h2>Record a payment</h2>
+      <p class="hint-line">Use this if the amount doesn't exactly match a suggested slip above — a partial payment, or a payment made outside the app.</p>
+      <form id="settle-form" novalidate>
+        <div class="row">
+          <div>
+            <label for="settle-from">Who paid</label>
+            <select id="settle-from"></select>
+          </div>
+          <div>
+            <label for="settle-to">Who received it</label>
+            <select id="settle-to"></select>
+          </div>
+        </div>
+        <label for="settle-amount">Amount (₹)</label>
+        <input id="settle-amount" type="number" step="0.01" min="0.01" placeholder="0.00" required />
+        <div class="error-msg" id="settle-error"></div>
+        <button class="btn-primary" type="submit">Record payment</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Payment history</h2>
+      <div class="ledger" id="payment-history"></div>
+    </section>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="core.js"></script>
+<script src="settlement.js"></script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+/* ============================================================
+   SPLITLEDGER — DESIGN TOKENS
+   ============================================================ */
+:root{
+  --ink:#121814;
+  --ink-soft:#3d4a42;
+  --ink-faint:#7c8a81;
+  --paper:#f2f5f3;
+  --card:#ffffff;
+  --line:#dbe3de;
+  --green:#1b5e4a;
+  --green-deep:#0f3d30;
+  --green-bright:#2fa37c;
+  --green-soft:#e7f4ee;
+  --amber:#c8641e;
+  --amber-soft:#fdf1e6;
+  --radius:14px;
+  --mono:'IBM Plex Mono', ui-monospace, monospace;
+  --sans:'Inter', system-ui, sans-serif;
+  --display:'Archivo', var(--sans);
+  --shadow:0 1px 2px rgba(18,24,20,.05), 0 8px 24px rgba(18,24,20,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.55;min-height:100vh}
+.hidden{display:none!important}
+label small{font-weight:400;color:var(--ink-faint)}
+
+/* ============================================================
+   NAVBAR (injected by core.js on every page)
+   ============================================================ */
+#navbar{background:var(--green-deep);color:#eef7f2}
+.navbar-inner{
+  max-width:1100px;margin:0 auto;padding:16px 20px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:16px;
+}
+.brand-mini{font-family:var(--display);font-weight:800;font-size:1.3rem;letter-spacing:-.02em;color:#eef7f2;text-decoration:none}
+.brand-mini span{color:var(--green-bright)}
+.nav-links{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+.nav-link{
+  color:#bcded0;text-decoration:none;font-size:.86rem;font-weight:500;
+  padding:8px 12px;border-radius:8px;transition:background .15s, color .15s;
+}
+.nav-link:hover{background:rgba(255,255,255,.09);color:#fff}
+
+/* Header identity is just this one circle — first letter, a color derived
+   from the person's name, nothing else. Click it to reach the profile page. */
+.avatar-link{
+  width:38px;height:38px;border-radius:50%;flex:0 0 auto;
+  display:inline-flex;align-items:center;justify-content:center;
+  color:#fff;font-family:var(--mono);font-weight:700;font-size:.95rem;
+  text-decoration:none;transition:transform .15s, box-shadow .15s;
+}
+.avatar-link:hover{transform:scale(1.07);box-shadow:0 0 0 3px rgba(255,255,255,.25)}
+
+.breadcrumb{
+  background:rgba(255,255,255,.06);border-top:1px solid rgba(255,255,255,.1);
+  padding:9px 20px;font-size:.82rem;color:#bcded0;
+}
+.breadcrumb b{color:#fff}
+.breadcrumb a{color:var(--green-bright);text-decoration:none;margin-left:10px;font-weight:600}
+.breadcrumb a:hover{text-decoration:underline}
+
+/* ============================================================
+   PAGE LAYOUT
+   ============================================================ */
+.page{max-width:1100px;margin:0 auto;padding:30px 20px 70px}
+.page-head{margin-bottom:22px}
+.page-head h1{font-family:var(--display);font-weight:800;font-size:clamp(1.5rem,2.6vw,2.1rem);letter-spacing:-.02em}
+.page-head p{color:var(--ink-faint);font-size:.92rem;margin-top:4px;max-width:60ch}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px;margin-bottom:22px}
+.card h2{font-family:var(--display);font-weight:700;font-size:1.05rem;display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.card h2::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--green-bright)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+@media (max-width:860px){.grid-2{grid-template-columns:1fr}}
+
+/* ============================================================
+   FORMS + BUTTONS
+   ============================================================ */
+label{display:block;font-size:.8rem;font-weight:600;color:var(--ink-soft);margin:12px 0 5px}
+input,select{
+  width:100%;padding:10px 12px;font:inherit;font-size:.92rem;
+  border:1.5px solid var(--line);border-radius:9px;background:#fbfcfb;color:var(--ink);
+  transition:border-color .15s, box-shadow .15s;
+}
+input:focus,select:focus{outline:none;border-color:var(--green-bright);box-shadow:0 0 0 3px rgba(47,163,124,.18)}
+button{font:inherit;font-weight:600;font-size:.9rem;border:none;border-radius:9px;padding:10px 16px;cursor:pointer;transition:transform .1s, background .15s;color:var(--ink)}
+button:active{transform:scale(.98)}
+.btn-primary{background:var(--green);color:#fff;width:100%;margin-top:16px}
+.btn-primary:hover{background:#17513f}
+/* Same look as .btn-primary, but sized to its own content instead of
+   width:100% — for buttons that sit inline next to an input in a .row.
+   (Mixing width:100% with a flex item is what broke the dashboard's
+   "Create group" button — this class exists so that never happens again.) */
+.btn-primary-inline{background:var(--green);color:#fff;padding:10px 20px;white-space:nowrap}
+.btn-primary-inline:hover{background:#17513f}
+.btn-ghost{background:transparent;color:var(--green);border:1.5px solid var(--line)}
+.btn-ghost:hover{border-color:var(--green-bright);background:var(--green-soft)}
+.btn-danger-sm{background:transparent;color:var(--amber);padding:6px 10px;font-size:.82rem}
+.btn-danger-sm:hover{background:var(--amber-soft)}
+.row{display:flex;gap:10px}
+.row > *{flex:1}
+.row button{flex:0 0 auto}
+.error-msg{display:none;background:var(--amber-soft);color:var(--amber);border:1px solid #f0cfae;border-radius:9px;padding:9px 12px;font-size:.84rem;margin-top:12px}
+.error-msg.show{display:block}
+.hint-line{font-size:.8rem;color:var(--ink-faint);margin:-6px 0 12px;line-height:1.4}
+
+/* ============================================================
+   DASHBOARD — stats + group cards
+   ============================================================ */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px}
+.stat b{color:var(--green);font-family:var(--mono);font-size:1.15rem;font-weight:600;display:block}
+.stat small{color:var(--ink-faint);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em}
+
+.group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.group-card{
+  border:1.5px solid var(--line);border-radius:12px;padding:16px;
+  cursor:pointer;transition:border-color .15s, transform .15s, box-shadow .15s;
+  background:#fbfcfb;text-align:left;width:100%;
+}
+.group-card:hover{border-color:var(--green-bright);transform:translateY(-2px);box-shadow:var(--shadow)}
+.group-card b{font-family:var(--display);font-size:1rem;display:block}
+.group-card .g-meta{color:var(--ink-faint);font-size:.8rem;margin-top:4px}
+.group-card .g-total{font-family:var(--mono);font-weight:600;color:var(--green);margin-top:10px}
+
+/* ============================================================
+   GROUP HUB — nav tiles to each section
+   ============================================================ */
+.hub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.hub-tile{
+  display:block;border:1.5px solid var(--line);border-radius:12px;padding:18px;
+  text-decoration:none;color:var(--ink);background:#fbfcfb;
+  transition:border-color .15s, transform .15s, box-shadow .15s;
+}
+.hub-tile:hover{border-color:var(--green-bright);transform:translateY(-2px);box-shadow:var(--shadow)}
+.hub-tile .h-icon{font-size:1.5rem}
+.hub-tile b{font-family:var(--display);display:block;margin-top:8px;font-size:1.02rem}
+.hub-tile span{color:var(--ink-faint);font-size:.8rem;display:block;margin-top:2px}
+
+/* ============================================================
+   MEMBERS + PARTICIPANTS
+   ============================================================ */
+.chip-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{display:inline-flex;align-items:center;gap:8px;background:var(--green-soft);border:1px solid #cfe7dc;border-radius:999px;padding:5px 6px 5px 6px;font-size:.86rem;font-weight:500}
+.chip .avatar{width:24px;height:24px;border-radius:50%;background:var(--green);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;font-family:var(--mono)}
+.chip button{background:none;padding:2px 7px;color:var(--ink-faint);font-size:1rem;line-height:1;border:none;cursor:pointer}
+.chip button:hover{color:var(--amber)}
+
+.participant-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+.participant-chip{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1.5px solid var(--line);border-radius:999px;
+  padding:6px 12px 6px 8px;font-size:.85rem;cursor:pointer;
+  transition:border-color .15s, background .15s;
+}
+.participant-chip:has(input:checked){background:var(--green-soft);border-color:#cfe7dc}
+.participant-chip input{width:auto;accent-color:var(--green);cursor:pointer}
+
+/* ============================================================
+   EXPENSE FORM
+   ============================================================ */
+.segmented{display:flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden;margin-top:5px}
+.segmented button{flex:1;border-radius:0;background:#fbfcfb;color:var(--ink-soft);font-size:.83rem;padding:9px 4px}
+.segmented button.active{background:var(--green);color:#fff}
+.split-inputs{margin-top:10px;display:grid;gap:8px}
+.split-row{display:flex;align-items:center;gap:10px}
+.split-row span{flex:1;font-size:.88rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.split-row input{width:110px;font-family:var(--mono)}
+.split-row b{font-family:var(--mono);font-size:.8rem;color:var(--ink-faint)}
+.split-hint{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);margin-top:6px}
+.split-hint.bad{color:var(--amber)}
+.split-hint.good{color:var(--green-bright)}
+
+/* ============================================================
+   LEDGER (receipt style)
+   ============================================================ */
+.ledger{border-top:1.5px dashed var(--line)}
+.expense{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;align-items:center;padding:13px 2px;border-bottom:1.5px dashed var(--line)}
+.expense .desc{font-weight:600;font-size:.93rem}
+.expense .meta{grid-column:1;font-size:.78rem;color:var(--ink-faint)}
+.expense .meta .mode{font-family:var(--mono);font-size:.66rem;text-transform:uppercase;background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:1px 6px;margin-left:6px}
+.expense .meta .who{display:block;margin-top:2px}
+.expense .amt{grid-row:1/span 2;font-family:var(--mono);font-weight:600;text-align:right}
+.expense .del{grid-row:1/span 2}
+
+/* ============================================================
+   BALANCES
+   ============================================================ */
+.balances{display:grid;gap:10px}
+.bal-row{display:grid;grid-template-columns:104px 1fr 92px;gap:12px;align-items:center}
+.bal-row .name{font-size:.87rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bal-track{position:relative;height:22px;background:var(--paper);border-radius:6px;overflow:hidden}
+.bal-track::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1.5px;background:var(--line)}
+.bal-bar{position:absolute;top:3px;bottom:3px;border-radius:4px}
+.bal-bar.pos{left:50%;background:var(--green-bright)}
+.bal-bar.neg{background:var(--amber)}
+.bal-amt{font-family:var(--mono);font-size:.86rem;font-weight:600;text-align:right}
+.bal-amt.pos{color:var(--green)}
+.bal-amt.neg{color:var(--amber)}
+.bal-amt.zero{color:var(--ink-faint)}
+
+/* ============================================================
+   SETTLEMENT SLIPS + PAYMENT HISTORY
+   ============================================================ */
+.settle-card{background:var(--green);border:none;color:#eef7f2}
+.settle-card h2{color:#fff}
+.settle-card h2::before{background:#8fd6ba}
+.settle-sub{color:#bcded0;font-size:.85rem;margin:-6px 0 16px}
+.slips{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.slip{background:var(--card);color:var(--ink);border-radius:10px;padding:16px 16px 12px;position:relative;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.slip::before{content:"";position:absolute;top:-5px;left:0;right:0;height:10px;background:radial-gradient(circle at 6px 5px, var(--green) 4.5px, transparent 5px);background-size:18px 10px}
+.slip .route{display:flex;align-items:center;gap:8px;font-weight:600;font-size:.9rem;flex-wrap:wrap}
+.slip .route .arrow{color:var(--green-bright);font-family:var(--mono)}
+.slip .pay{font-family:var(--mono);font-weight:600;font-size:1.3rem;margin-top:8px;color:var(--green)}
+.slip small{display:block;margin-top:6px;color:var(--ink-faint);font-size:.7rem;text-transform:uppercase;letter-spacing:.07em}
+.slip .btn-mark-paid{width:100%;margin-top:12px;background:var(--green-soft);color:var(--green);border:1.5px solid #cfe7dc;padding:8px 10px;font-size:.82rem}
+.slip .btn-mark-paid:hover{background:var(--green);color:#fff;border-color:var(--green)}
+.settle-clear{grid-column:1/-1;background:rgba(255,255,255,.12);border-radius:10px;color:#eef7f2;padding:22px;text-align:center;font-weight:600}
+
+.payment-row{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;align-items:center;padding:12px 2px;border-bottom:1.5px dashed var(--line)}
+.payment-row .route{font-weight:600;font-size:.92rem}
+.payment-row .route .arrow{color:var(--green-bright);font-family:var(--mono);margin:0 4px}
+.payment-row .p-meta{grid-column:1;font-size:.78rem;color:var(--ink-faint)}
+.payment-row .p-amt{grid-row:1/span 2;font-family:var(--mono);font-weight:600;color:var(--green);text-align:right}
+.payment-row button{grid-row:1/span 2}
+
+/* ============================================================
+   EMPTY STATES + TOAST
+   ============================================================ */
+.empty-state{text-align:center;color:var(--ink-faint);padding:32px 10px;font-size:.9rem}
+.empty-state b{display:block;font-family:var(--display);color:var(--ink-soft);margin-bottom:4px}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:11px 20px;border-radius:999px;font-size:.87rem;opacity:0;transition:.3s;pointer-events:none;z-index:100}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+footer{max-width:1100px;margin:0 auto;padding:0 20px 40px;color:var(--ink-faint);font-size:.8rem}
+
+/* ============================================================
+   PROFILE PAGE
+   ============================================================ */
+.profile-card{max-width:420px;margin:0 auto;text-align:center}
+.profile-avatar{
+  width:72px;height:72px;border-radius:50%;margin:4px auto 14px;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-family:var(--mono);font-weight:700;font-size:1.9rem;
+}
+.profile-card h2{font-family:var(--display);font-weight:700;font-size:1.3rem;margin-bottom:2px}
+.profile-card .hint-line{margin:2px 0;text-align:center}
+.profile-card .btn-danger-sm{margin-top:18px;border:1.5px solid var(--amber-soft)}

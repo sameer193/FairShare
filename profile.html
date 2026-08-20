@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Profile — SplitLedger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Your profile</h1>
+    <p>Account details for this browser — visible only to you.</p>
+  </div>
+
+  <section class="card profile-card">
+    <div class="profile-avatar" id="profile-avatar">?</div>
+    <h2 id="profile-name">—</h2>
+    <p class="hint-line" id="profile-email">—</p>
+    <p class="hint-line" id="profile-since"></p>
+    <button class="btn-danger-sm" id="btn-logout">Log out</button>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="core.js"></script>
+<script src="profile.js"></script>
+</body>
+</html>

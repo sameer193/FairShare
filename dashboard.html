@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard — SplitLedger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<main class="page">
+  <div class="page-head">
+    <h1 id="greeting">Dashboard</h1>
+    <p>Everything you own across every group, plus how much the whole site is trusted with.</p>
+  </div>
+
+  <div class="stat-grid" id="stat-grid"></div>
+
+  <section class="card">
+    <h2>Create a new group</h2>
+    <div class="row">
+      <input id="group-name" type="text" placeholder="e.g. Goa Trip" maxlength="40" />
+      <button class="btn-primary-inline" id="btn-create-group">Create group</button>
+    </div>
+    <div class="error-msg" id="group-error"></div>
+  </section>
+
+  <section class="card">
+    <h2>Your groups</h2>
+    <div class="group-grid" id="group-grid"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="core.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>

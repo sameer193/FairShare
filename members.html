@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Members — SplitLedger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Members</h1>
+    <p>Everyone who might show up in an expense for this group.</p>
+  </div>
+
+  <section class="card">
+    <h2>Add members</h2>
+    <p class="hint-line">Add one member, or several at once separated by commas — handy if you forgot someone earlier and remember a bunch of names later.</p>
+    <div class="row">
+      <input id="member-name" type="text" placeholder="e.g. Aarav, Priya, Kabir" />
+      <button class="btn-ghost" id="btn-add-member" style="flex:0 0 auto">Add</button>
+    </div>
+    <div class="error-msg" id="member-error"></div>
+  </section>
+
+  <section class="card">
+    <h2>Current members</h2>
+    <div class="chip-list" id="member-list"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="core.js"></script>
+<script src="members.js"></script>
+</body>
+</html>

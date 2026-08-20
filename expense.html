@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Add expense — SplitLedger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="navbar"></div>
+
+<main class="page">
+  <div class="page-head">
+    <h1>Add expense</h1>
+    <p>Log a bill, choose who paid, and decide how it's split.</p>
+  </div>
+
+  <section class="card">
+    <form id="expense-form" novalidate>
+      <label for="exp-desc">Description</label>
+      <input id="exp-desc" type="text" placeholder="e.g. Dinner at Sagar Ratna" maxlength="60" required />
+
+      <div class="row">
+        <div>
+          <label for="exp-amount">Amount (₹)</label>
+          <input id="exp-amount" type="number" step="0.01" min="0.01" placeholder="0.00" required />
+        </div>
+        <div>
+          <label for="exp-payer">Paid by</label>
+          <select id="exp-payer" required></select>
+        </div>
+      </div>
+
+      <label>Split among</label>
+      <p class="hint-line" style="margin-top:-4px">Untick anyone who isn't part of this particular bill — the split only happens across the people checked below.</p>
+      <div class="participant-list" id="participant-list"></div>
+
+      <label>Split method</label>
+      <div class="segmented" id="split-mode" role="tablist">
+        <button type="button" class="active" data-mode="equal">Equal</button>
+        <button type="button" data-mode="exact">Exact ₹</button>
+        <button type="button" data-mode="percentage">Percent %</button>
+      </div>
+
+      <div class="split-inputs" id="split-inputs"></div>
+      <div class="split-hint" id="split-hint"></div>
+
+      <div class="error-msg" id="expense-error"></div>
+      <button class="btn-primary" type="submit">Add expense</button>
+    </form>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="core.js"></script>
+<script src="expense.js"></script>
+</body>
+</html>
