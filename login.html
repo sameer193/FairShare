@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>SplitLedger - Login & Register</title>
+    <title>FairShare - Login & Register</title>
 
     <link
         href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
@@ -497,16 +497,16 @@
     <script>
         "use strict";
         /* ==============================================================
-           SplitLedger — Login & Register (Phase 1)
+           FairShare — Login & Register (Phase 1)
 
            Two DIFFERENT browser storages are used here on purpose:
 
-           - localStorage("splitledger-users")  — the list of every
+           - localStorage("FairShare-users")  — the list of every
              registered account. This is durable: it survives closing
              the browser, because an account should still exist next
              time you visit.
 
-           - sessionStorage("splitledger-session") — which account is
+           - sessionStorage("FairShare-session") — which account is
              CURRENTLY logged in, in THIS tab. This clears itself the
              moment the tab or browser closes — that's exactly what a
              "session" means, and it's why closing the tab logs you out
@@ -519,8 +519,8 @@
            parameters). No classes, no Promises/async/fetch.
            ============================================================== */
 
-        const USERS_KEY = "splitledger-users";     // localStorage: array of {id, username, email, secret}
-        const SESSION_KEY = "splitledger-session"; // sessionStorage: id of the currently logged-in user
+        const USERS_KEY = "FairShare-users";     // localStorage: array of {id, username, email, secret}
+        const SESSION_KEY = "FairShare-session"; // sessionStorage: id of the currently logged-in user
         // No site-wide counters are kept anywhere — nothing about how many
         // people use this site, or how often, is tracked or shown to anyone.
 
