@@ -1,4 +1,4 @@
-# SplitLedger — Dynamic Split-Bill Settlement Optimizer (Phase 1, multi-page)
+# FairShare — Dynamic Split-Bill Settlement Optimizer (Phase 1, multi-page)
 
 A group expense tracker that computes the **minimum number of transactions**
 needed to settle all debts among members, using a greedy max-creditor/
@@ -45,7 +45,7 @@ conflict can't quietly reappear elsewhere.
 
 **Removed all site-wide numbers — not just hid them.** "Total users on
 site" and "Total logins" are gone from the dashboard. The same problem
-existed on the login page too (a "X people already use SplitLedger" line,
+existed on the login page too (a "X people already use FairShare" line,
 visible even before logging in) — that's removed as well, along with the
 tracking code behind it (`STATS_KEY`, `getStats()`), since nothing
 displays it anymore. What a logged-in person sees is only ever their own

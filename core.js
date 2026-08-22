@@ -8,12 +8,12 @@
    Storage design (this is the actual fix for the "data won't go
    away" bug):
      LOCAL STORAGE  — durable, survives closing the browser:
-         splitledger-users   (array of every registered account)
-         splitledger-v1-<id> (one array of groups per user)
+         FairShare-users   (array of every registered account)
+         FairShare-v1-<id> (one array of groups per user)
      SESSION STORAGE — only lasts while this tab is open:
-         splitledger-session      (which user id is logged in)
-         splitledger-active-group (which group you're currently in)
-         splitledger-flash        (a one-time message for the next page)
+         FairShare-session      (which user id is logged in)
+         FairShare-active-group (which group you're currently in)
+         FairShare-flash        (a one-time message for the next page)
 
    Nothing in this file ever invents or seeds sample data. If
    storage is empty, the app shows empty states — nothing more.
@@ -42,13 +42,13 @@ const local = makeSafeStorage(window.localStorage);
 const session = makeSafeStorage(window.sessionStorage);
 
 /* LocalStorage keys (durable) */
-const USERS_KEY = "splitledger-users";
-const dataKey = (userId) => `splitledger-v1-${userId}`;
+const USERS_KEY = "FairShare-users";
+const dataKey = (userId) => `FairShare-v1-${userId}`;
 
 /* SessionStorage keys (this tab only) */
-const SESSION_KEY = "splitledger-session";
-const ACTIVE_GROUP_KEY = "splitledger-active-group";
-const FLASH_KEY = "splitledger-flash";
+const SESSION_KEY = "FairShare-session";
+const ACTIVE_GROUP_KEY = "FairShare-active-group";
+const FLASH_KEY = "FairShare-flash";
 
 /* ---------------------------- JSON helpers ----------------------------- */
 function readJSON(storageArea, key, fallback) {
@@ -392,7 +392,7 @@ function renderNavbar(user, currentPage, activeGroup) {
 
   box.innerHTML = `
     <div class="navbar-inner">
-      <a class="brand-mini" href="dashboard.html">Split<span>Ledger</span></a>
+      <a class="brand-mini" href="dashboard.html">Fair<span>Share</span></a>
       <nav class="nav-links">${links.join("")}</nav>
       <a class="avatar-link" href="profile.html" style="background:${color}" title="${user.username}'s profile">${letter}</a>
     </div>
