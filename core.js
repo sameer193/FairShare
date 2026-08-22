@@ -1,405 +1,1134 @@
 "use strict";
-/* ==============================================================
-   core.js — shared logic for every page AFTER login.
-   login.html does NOT use this file (it runs before a session
-   exists); every other page includes this file first, then its
-   own small page-specific script.
 
-   Storage design (this is the actual fix for the "data won't go
-   away" bug):
-     LOCAL STORAGE  — durable, survives closing the browser:
-         FairShare-users   (array of every registered account)
-         FairShare-v1-<id> (one array of groups per user)
-     SESSION STORAGE — only lasts while this tab is open:
-         FairShare-session      (which user id is logged in)
-         FairShare-active-group (which group you're currently in)
-         FairShare-flash        (a one-time message for the next page)
+/*
+   core.js
+   Common JavaScript used by all pages after login.
 
-   Nothing in this file ever invents or seeds sample data. If
-   storage is empty, the app shows empty states — nothing more.
+   This file handles:
+   1. Local Storage
+   2. Session Storage
+   3. Users
+   4. Login session
+   5. Groups
+   6. Balance calculation
+   7. Settlement calculation
+   8. Shared navigation bar
+*/
 
-   Privacy: this build does NOT track or display any site-wide
-   numbers (total accounts, total logins) anywhere in the app —
-   what a logged-in person sees is only ever their own data.
-   ============================================================== */
 
-/* ---------- Safe storage wrappers (fall back to memory if blocked) ---------- */
-function makeSafeStorage(realStorage) {
+// ================================================================
+// 1. STORAGE
+// ================================================================
+
+// This function checks whether browser storage is working.
+function makeSafeStorage(storage) {
+
   try {
-    realStorage.setItem("__t", "1");
-    realStorage.removeItem("__t");
-    return realStorage;
-  } catch (err) {
-    const mem = {};
+
+    storage.setItem("__test", "1");
+    storage.removeItem("__test");
+
+    return storage;
+
+  } catch (error) {
+
+    // If storage does not work, use temporary memory.
+    let memory = {};
+
     return {
-      getItem: (k) => (k in mem ? mem[k] : null),
-      setItem: (k, v) => { mem[k] = String(v); },
-      removeItem: (k) => { delete mem[k]; },
+
+      getItem: function (key) {
+
+        if (key in memory) {
+          return memory[key];
+        }
+
+        return null;
+      },
+
+      setItem: function (key, value) {
+        memory[key] = String(value);
+      },
+
+      removeItem: function (key) {
+        delete memory[key];
+      }
     };
   }
 }
+
+
+// Local Storage
+// Data stays even after closing the browser.
 const local = makeSafeStorage(window.localStorage);
+
+
+// Session Storage
+// Data stays only while the browser tab is open.
 const session = makeSafeStorage(window.sessionStorage);
 
-/* LocalStorage keys (durable) */
-const USERS_KEY = "FairShare-users";
-const dataKey = (userId) => `FairShare-v1-${userId}`;
 
-/* SessionStorage keys (this tab only) */
+// ================================================================
+// 2. STORAGE KEY NAMES
+// ================================================================
+
+const USERS_KEY = "FairShare-users";
+
 const SESSION_KEY = "FairShare-session";
+
 const ACTIVE_GROUP_KEY = "FairShare-active-group";
+
 const FLASH_KEY = "FairShare-flash";
 
-/* ---------------------------- JSON helpers ----------------------------- */
+
+// Creates the storage key for a particular user's groups.
+function dataKey(userId) {
+
+  return "FairShare-v1-" + userId;
+}
+
+
+// ================================================================
+// 3. JSON FUNCTIONS
+// ================================================================
+
+// Get data from Local Storage / Session Storage.
 function readJSON(storageArea, key, fallback) {
+
   try {
-    const parsed = JSON.parse(storageArea.getItem(key));
-    return parsed === null || parsed === undefined ? fallback : parsed;
-  } catch (err) {
+
+    let data = storageArea.getItem(key);
+
+    // If nothing is stored, return the default value.
+    if (data === null) {
+      return fallback;
+    }
+
+    return JSON.parse(data);
+
+  } catch (error) {
+
     return fallback;
   }
 }
+
+
+// Save JavaScript data as JSON.
 function writeJSON(storageArea, key, value) {
+
   storageArea.setItem(key, JSON.stringify(value));
 }
 
-/* ---------------------------- General utilities ----------------------------- */
-function round2(n) { return Math.round(n * 100) / 100; }
-function fmt(n) { return `₹${round2(n).toFixed(2)}`; }
+
+// ================================================================
+// 4. GENERAL HELPER FUNCTIONS
+// ================================================================
+
+
+// Round a number to 2 decimal places.
+function round2(number) {
+
+  return Math.round(number * 100) / 100;
+}
+
+
+// Convert number into Indian Rupee format.
+function fmt(number) {
+
+  return "₹" + round2(number).toFixed(2);
+}
+
+
+// Get first two initials from a person's name.
 function initials(name) {
-  return name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+
+  name = name.trim();
+
+  let words = name.split(" ");
+
+  let result = "";
+
+  for (let i = 0; i < words.length; i++) {
+
+    if (words[i] !== "") {
+
+      result = result + words[i].charAt(0);
+    }
+  }
+
+  return result.substring(0, 2).toUpperCase();
 }
 
-/* Just the first letter — used for the small header avatar, per request. */
+
+// Get only the first letter of a name.
 function firstLetter(name) {
-  return name.trim().charAt(0).toUpperCase();
+
+  name = name.trim();
+
+  return name.charAt(0).toUpperCase();
 }
 
-/* Turns a name into a consistent color, so the same person always gets
-   the same avatar color across pages/sessions. Walks every character of
-   the name with a `for` loop to build a simple running hash. */
+
+// ================================================================
+// 5. CREATE AVATAR COLOR
+// ================================================================
+
 function colorForName(name) {
+
   let hash = 0;
+
   for (let i = 0; i < name.length; i++) {
+
     hash = (hash * 31 + name.charCodeAt(i)) % 360;
   }
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 55%, 38%)`;
+
+  let hue = Math.abs(hash) % 360;
+
+  return "hsl(" + hue + ", 55%, 38%)";
 }
 
-function toast(msg) {
-  const el = document.getElementById("toast");
-  if (!el) return;
-  el.textContent = msg;
-  el.classList.add("show");
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => el.classList.remove("show"), 2400);
-}
 
-function showError(id, msg) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = msg;
-  el.classList.add("show");
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove("show"), 4000);
-}
+// ================================================================
+// 6. TOAST MESSAGE
+// ================================================================
 
-/* ======================================================================
-   FLASH MESSAGES — a one-time note carried across a page redirect using
-   SessionStorage. Written on one page, read (and immediately erased) on
-   the next page load, so it never lingers or reappears on refresh.
-   ====================================================================== */
-function setFlash(msg) {
-  session.setItem(FLASH_KEY, msg);
-}
-function consumeFlash() {
-  const msg = session.getItem(FLASH_KEY);
-  if (msg) session.removeItem(FLASH_KEY);
-  return msg;
-}
-function showFlashIfAny() {
-  const msg = consumeFlash();
-  if (msg) toast(msg);
-}
+function toast(message) {
 
-/* ======================================================================
-   USERS (LocalStorage). getUsers() is only ever used internally, to
-   check for a duplicate email on registration and to look up whoever
-   the current session belongs to — its length/contents are never
-   rendered anywhere in the UI.
-   ====================================================================== */
-function getUsers() { return readJSON(local, USERS_KEY, []); }
+  let element = document.getElementById("toast");
 
-/* ======================================================================
-   SESSION — who is logged in, for this browser tab only
-   ====================================================================== */
-function findCurrentUser() {
-  const sessionId = session.getItem(SESSION_KEY);
-  if (!sessionId) return null;
-
-  const users = getUsers();
-  for (const user of users) {          // for...of loop over the users array
-    if (user.id === sessionId) return user;
+  if (!element) {
+    return;
   }
+
+  element.textContent = message;
+
+  element.classList.add("show");
+
+  setTimeout(function () {
+
+    element.classList.remove("show");
+
+  }, 2400);
+}
+
+
+// ================================================================
+// 7. ERROR MESSAGE
+// ================================================================
+
+function showError(id, message) {
+
+  let element = document.getElementById(id);
+
+  if (!element) {
+    return;
+  }
+
+  element.textContent = message;
+
+  element.classList.add("show");
+
+  setTimeout(function () {
+
+    element.classList.remove("show");
+
+  }, 4000);
+}
+
+
+// ================================================================
+// 8. FLASH MESSAGE
+// ================================================================
+
+// Save a message before moving to another page.
+function setFlash(message) {
+
+  session.setItem(FLASH_KEY, message);
+}
+
+
+// Get the saved message and remove it.
+function consumeFlash() {
+
+  let message = session.getItem(FLASH_KEY);
+
+  if (message) {
+
+    session.removeItem(FLASH_KEY);
+  }
+
+  return message;
+}
+
+
+// Show flash message if one exists.
+function showFlashIfAny() {
+
+  let message = consumeFlash();
+
+  if (message) {
+
+    toast(message);
+  }
+}
+
+
+// ================================================================
+// 9. USERS
+// ================================================================
+
+// Get all registered users.
+function getUsers() {
+
+  return readJSON(local, USERS_KEY, []);
+}
+
+
+// ================================================================
+// 10. LOGIN SESSION
+// ================================================================
+
+// Find the user who is currently logged in.
+function findCurrentUser() {
+
+  let sessionId = session.getItem(SESSION_KEY);
+
+  // Nobody is logged in.
+  if (!sessionId) {
+
+    return null;
+  }
+
+  let users = getUsers();
+
+  for (let i = 0; i < users.length; i++) {
+
+    let user = users[i];
+
+    if (user.id === sessionId) {
+
+      return user;
+    }
+  }
+
   return null;
 }
 
-/* Call this at the top of every protected page. Redirects to login.html
-   and stops the caller (via the returned null) if nobody is logged in. */
+
+// Check whether the user is logged in.
 function requireLogin() {
-  const user = findCurrentUser();
+
+  let user = findCurrentUser();
+
   if (!user) {
+
     window.location.href = "login.html";
+
     return null;
   }
+
   return user;
 }
 
+
+// Logout the current user.
 function logout() {
+
   session.removeItem(SESSION_KEY);
+
   session.removeItem(ACTIVE_GROUP_KEY);
+
   window.location.href = "login.html";
 }
 
-/* ======================================================================
-   PER-USER GROUP DATA (LocalStorage, private to that account)
-   ====================================================================== */
+
+// ================================================================
+// 11. GROUP DATA
+// ================================================================
+
+
+// Get all groups of one user.
 function getUserGroups(userId) {
-  const groups = readJSON(local, dataKey(userId), []);
-  // migrate any group saved before "settlements" existed
-  for (const g of groups) {
-    if (!Array.isArray(g.settlements)) g.settlements = [];
+
+  let groups = readJSON(local, dataKey(userId), []);
+
+
+  // Make sure every group has a settlements array.
+  for (let i = 0; i < groups.length; i++) {
+
+    if (!groups[i].settlements) {
+
+      groups[i].settlements = [];
+    }
   }
+
   return groups;
 }
+
+
+// Save all groups of a user.
 function saveUserGroups(userId, groups) {
+
   writeJSON(local, dataKey(userId), groups);
 }
 
-/* Plain factory function — no ES6 classes yet in the syllabus. */
-function createGroup(name, members = [], expenses = [], settlements = []) {
-  return {
+
+// Create a new group.
+function createGroup(name) {
+
+  let group = {
+
     id: Date.now() + Math.floor(Math.random() * 1000),
-    name,
-    members,
-    expenses,
-    settlements,
+
+    name: name,
+
+    members: [],
+
+    expenses: [],
+
+    settlements: []
   };
+
+  return group;
 }
 
-/* ======================================================================
-   ACTIVE GROUP — which group this tab is currently working in
-   (SessionStorage: a per-tab "where am I right now" pointer, not
-   durable data, so it belongs in SessionStorage rather than LocalStorage).
-   ====================================================================== */
+
+// ================================================================
+// 12. ACTIVE GROUP
+// ================================================================
+
+
+// Get the ID of the group currently selected.
 function getActiveGroupId() {
-  const raw = session.getItem(ACTIVE_GROUP_KEY);
-  return raw ? Number(raw) : null;
-}
-function setActiveGroupId(id) {
-  session.setItem(ACTIVE_GROUP_KEY, String(id));
-}
-function clearActiveGroupId() {
-  session.removeItem(ACTIVE_GROUP_KEY);
-}
 
-/* Call this at the top of every group-scoped page (Members, Add Expense,
-   Ledger, Balances, Settlement). Redirects to dashboard.html if there's
-   no active group selected, or if it no longer exists. */
-function requireActiveGroup(user) {
-  const groups = getUserGroups(user.id);
-  const groupId = getActiveGroupId();
+  let value = session.getItem(ACTIVE_GROUP_KEY);
 
-  let activeGroup = null;
-  for (const g of groups) {           // for...of loop
-    if (g.id === groupId) { activeGroup = g; break; }
+  if (value) {
+
+    return Number(value);
   }
 
-  if (!activeGroup) {
-    setFlash("Select a group first.");
-    window.location.href = "dashboard.html";
-    return null;
-  }
-  return { groups, group: activeGroup };
-}
-
-/* A softer version of requireActiveGroup — used on pages (like the
-   profile page) that don't NEED a group to work, but still want to show
-   the group-scoped nav links if one happens to be active. Never
-   redirects; just returns the group or null. */
-function peekActiveGroup(user) {
-  const groups = getUserGroups(user.id);
-  const groupId = getActiveGroupId();
-  for (const g of groups) {
-    if (g.id === groupId) return g;
-  }
   return null;
 }
 
-/* ======================================================================
-   BALANCE CALCULATION
-   balance > 0 → the group owes this member (creditor)
-   balance < 0 → this member owes the group (debtor)
-   ====================================================================== */
-function computeBalances(group) {
-  const balances = {};
-  for (const m of group.members) {
-    balances[m] = 0;
-  }
 
-  for (const expense of group.expenses) {
-    const { payer, amount, shares } = expense;
-    if (payer in balances) balances[payer] += amount;
-    for (const member in shares) {          // for...in over the shares object
-      if (member in balances) balances[member] -= shares[member];
+// Set the active group.
+function setActiveGroupId(id) {
+
+  session.setItem(ACTIVE_GROUP_KEY, String(id));
+}
+
+
+// Remove the active group.
+function clearActiveGroupId() {
+
+  session.removeItem(ACTIVE_GROUP_KEY);
+}
+
+
+// ================================================================
+// 13. REQUIRE ACTIVE GROUP
+// ================================================================
+
+
+// Used on pages that need a selected group.
+function requireActiveGroup(user) {
+
+  let groups = getUserGroups(user.id);
+
+  let groupId = getActiveGroupId();
+
+  let activeGroup = null;
+
+
+  for (let i = 0; i < groups.length; i++) {
+
+    if (groups[i].id === groupId) {
+
+      activeGroup = groups[i];
+
+      break;
     }
   }
 
-  for (const settlement of group.settlements || []) {
-    const { from, to, amount } = settlement;
-    if (from in balances) balances[from] += amount;
-    if (to in balances) balances[to] -= amount;
+
+  // No group was selected.
+  if (!activeGroup) {
+
+    setFlash("Select a group first.");
+
+    window.location.href = "dashboard.html";
+
+    return null;
   }
 
-  for (const m in balances) {
-    balances[m] = round2(balances[m]);
+
+  return {
+
+    groups: groups,
+
+    group: activeGroup
+  };
+}
+
+
+// ================================================================
+// 14. CHECK ACTIVE GROUP WITHOUT REDIRECTING
+// ================================================================
+
+
+// Used by profile page.
+function peekActiveGroup(user) {
+
+  let groups = getUserGroups(user.id);
+
+  let groupId = getActiveGroupId();
+
+
+  for (let i = 0; i < groups.length; i++) {
+
+    if (groups[i].id === groupId) {
+
+      return groups[i];
+    }
   }
+
+  return null;
+}
+
+
+// ================================================================
+// 15. BALANCE CALCULATION
+// ================================================================
+
+
+// Positive balance:
+// Person should receive money.
+//
+// Negative balance:
+// Person needs to pay money.
+function computeBalances(group) {
+
+  let balances = {};
+
+
+  // First give every member a balance of 0.
+  for (let i = 0; i < group.members.length; i++) {
+
+    let member = group.members[i];
+
+    balances[member] = 0;
+  }
+
+
+  // Go through every expense.
+  for (let i = 0; i < group.expenses.length; i++) {
+
+    let expense = group.expenses[i];
+
+    let payer = expense.payer;
+
+    let amount = expense.amount;
+
+    let shares = expense.shares;
+
+
+    // The person who paid gets credit.
+    if (balances[payer] !== undefined) {
+
+      balances[payer] = balances[payer] + amount;
+    }
+
+
+    // Subtract each person's share.
+    for (let member in shares) {
+
+      if (balances[member] !== undefined) {
+
+        balances[member] =
+          balances[member] - shares[member];
+      }
+    }
+  }
+
+
+  // Now apply payments that have already been made.
+  for (let i = 0; i < group.settlements.length; i++) {
+
+    let settlement = group.settlements[i];
+
+    let from = settlement.from;
+
+    let to = settlement.to;
+
+    let amount = settlement.amount;
+
+
+    // Person who paid gets credit.
+    if (balances[from] !== undefined) {
+
+      balances[from] =
+        balances[from] + amount;
+    }
+
+
+    // Person who received the payment gets lower balance.
+    if (balances[to] !== undefined) {
+
+      balances[to] =
+        balances[to] - amount;
+    }
+  }
+
+
+  // Round all balances to 2 decimal places.
+  for (let member in balances) {
+
+    balances[member] =
+      round2(balances[member]);
+  }
+
+
   return balances;
 }
 
+
+// ================================================================
+// 16. RECORD A PAYMENT
+// ================================================================
+
+
 function recordSettlement(group, from, to, amount) {
-  group.settlements.push({
+
+  let settlement = {
+
     id: Date.now() + Math.floor(Math.random() * 1000),
-    from, to, amount: round2(amount),
-    date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
-  });
+
+    from: from,
+
+    to: to,
+
+    amount: round2(amount),
+
+    date: new Date().toLocaleDateString(
+      "en-IN",
+      {
+        day: "numeric",
+        month: "short"
+      }
+    )
+  };
+
+
+  group.settlements.push(settlement);
 }
 
-/* ======================================================================
-   MINIMUM-TRANSACTION SETTLEMENT (greedy max-creditor / max-debtor match)
-   ====================================================================== */
+
+// ================================================================
+// 17. SETTLEMENT OPTIMIZER
+// ================================================================
+
+
+// This function tries to reduce the number of payments.
+//
+// Example:
+//
+// A owes B ₹500
+// C owes B ₹300
+//
+// Instead of many payments, we create the minimum
+// useful transfers.
 function optimizeSettlement(balances) {
-  const debtors = [];
-  const creditors = [];
 
-  for (const name in balances) {      // for...in over a plain object
-    const bal = balances[name];
-    if (bal < -0.004) debtors.push({ name, amt: -bal });
-    else if (bal > 0.004) creditors.push({ name, amt: bal });
+  let debtors = [];
+
+  let creditors = [];
+
+
+  // Separate people who owe money and people
+  // who should receive money.
+  for (let name in balances) {
+
+    let balance = balances[name];
+
+
+    // Negative = person owes money.
+    if (balance < -0.004) {
+
+      debtors.push({
+
+        name: name,
+
+        amount: -balance
+      });
+    }
+
+
+    // Positive = person should receive money.
+    else if (balance > 0.004) {
+
+      creditors.push({
+
+        name: name,
+
+        amount: balance
+      });
+    }
   }
 
-  debtors.sort((a, b) => b.amt - a.amt);
-  creditors.sort((a, b) => b.amt - a.amt);
 
-  const transfers = [];
-  let i = 0;
-  let j = 0;
-  while (i < debtors.length && j < creditors.length) {
-    const pay = round2(Math.min(debtors[i].amt, creditors[j].amt));
-    transfers.push({ from: debtors[i].name, to: creditors[j].name, amount: pay });
-    debtors[i].amt = round2(debtors[i].amt - pay);
-    creditors[j].amt = round2(creditors[j].amt - pay);
-    if (debtors[i].amt <= 0.004) i++;
-    if (creditors[j].amt <= 0.004) j++;
+  // Sort biggest debtor first.
+  debtors.sort(function (a, b) {
+
+    return b.amount - a.amount;
+  });
+
+
+  // Sort biggest creditor first.
+  creditors.sort(function (a, b) {
+
+    return b.amount - a.amount;
+  });
+
+
+  let transfers = [];
+
+  let debtorIndex = 0;
+
+  let creditorIndex = 0;
+
+
+  // Continue until we finish either debtors
+  // or creditors.
+  while (
+    debtorIndex < debtors.length &&
+    creditorIndex < creditors.length
+  ) {
+
+
+    let debtor = debtors[debtorIndex];
+
+    let creditor = creditors[creditorIndex];
+
+
+    // Find the smaller amount.
+    let pay = Math.min(
+      debtor.amount,
+      creditor.amount
+    );
+
+
+    pay = round2(pay);
+
+
+    // Create a payment.
+    transfers.push({
+
+      from: debtor.name,
+
+      to: creditor.name,
+
+      amount: pay
+    });
+
+
+    // Reduce debtor's remaining amount.
+    debtor.amount =
+      round2(debtor.amount - pay);
+
+
+    // Reduce creditor's remaining amount.
+    creditor.amount =
+      round2(creditor.amount - pay);
+
+
+    // If debtor has nothing left,
+    // move to next debtor.
+    if (debtor.amount <= 0.004) {
+
+      debtorIndex++;
+    }
+
+
+    // If creditor has received everything,
+    // move to next creditor.
+    if (creditor.amount <= 0.004) {
+
+      creditorIndex++;
+    }
   }
+
+
   return transfers;
 }
 
-/* ======================================================================
-   SHARE BUILDERS for the three split modes. `participants` is whichever
-   members are ticked in "Split among" — not necessarily everyone.
-   ====================================================================== */
+
+// ================================================================
+// 18. BUILD EXPENSE SHARES
+// ================================================================
+
+
+// There are three ways to split a bill:
+//
+// 1. Equal
+// 2. Exact amount
+// 3. Percentage
 function buildShares(mode, amount, participants, inputs) {
+
+
+  // ------------------------------------------------------------
+  // EQUAL SPLIT
+  // ------------------------------------------------------------
+
   if (mode === "equal") {
-    const share = round2(amount / participants.length);
-    const shares = {};
+
+    let share =
+      round2(amount / participants.length);
+
+    let shares = {};
+
+
     for (let i = 0; i < participants.length; i++) {
-      const m = participants[i];
-      shares[m] = i === participants.length - 1
-        ? round2(amount - share * (participants.length - 1))
-        : share;
+
+      let member = participants[i];
+
+
+      // Give the last person the remaining amount.
+      // This avoids small decimal errors.
+      if (i === participants.length - 1) {
+
+        shares[member] =
+          round2(
+            amount -
+            share * (participants.length - 1)
+          );
+
+      } else {
+
+        shares[member] = share;
+      }
     }
-    return { ok: true, shares };
+
+
+    return {
+
+      ok: true,
+
+      shares: shares
+    };
   }
+
+
+  // ------------------------------------------------------------
+  // EXACT AMOUNT SPLIT
+  // ------------------------------------------------------------
 
   if (mode === "exact") {
-    const shares = {};
+
+    let shares = {};
+
     let sum = 0;
-    for (const m of participants) {
-      const v = round2(parseFloat(inputs[m]) || 0);
-      shares[m] = v;
-      sum = round2(sum + v);
+
+
+    for (let i = 0; i < participants.length; i++) {
+
+      let member = participants[i];
+
+      let value = parseFloat(inputs[member]);
+
+
+      if (!value) {
+
+        value = 0;
+      }
+
+
+      value = round2(value);
+
+      shares[member] = value;
+
+      sum = round2(sum + value);
     }
-    if (Math.abs(sum - amount) > 0.01)
-      return { ok: false, msg: `Exact shares add up to ${fmt(sum)}, but the bill is ${fmt(amount)}.` };
-    return { ok: true, shares };
+
+
+    // Exact shares must equal bill amount.
+    if (Math.abs(sum - amount) > 0.01) {
+
+      return {
+
+        ok: false,
+
+        msg:
+          "Exact shares add up to " +
+          fmt(sum) +
+          ", but the bill is " +
+          fmt(amount) +
+          "."
+      };
+    }
+
+
+    return {
+
+      ok: true,
+
+      shares: shares
+    };
   }
 
-  /* percentage */
-  let pctSum = 0;
-  for (const m of participants) {
-    pctSum += parseFloat(inputs[m]) || 0;
-  }
-  if (Math.abs(pctSum - 100) > 0.01)
-    return { ok: false, msg: `Percentages add up to ${round2(pctSum)}% — they must total 100%.` };
 
-  const shares = {};
-  let running = 0;
+  // ------------------------------------------------------------
+  // PERCENTAGE SPLIT
+  // ------------------------------------------------------------
+
+  let percentageSum = 0;
+
+
   for (let i = 0; i < participants.length; i++) {
-    const m = participants[i];
+
+    let member = participants[i];
+
+    let percentage = parseFloat(inputs[member]);
+
+
+    if (!percentage) {
+
+      percentage = 0;
+    }
+
+
+    percentageSum =
+      percentageSum + percentage;
+  }
+
+
+  percentageSum = round2(percentageSum);
+
+
+  // Percentages must total 100.
+  if (Math.abs(percentageSum - 100) > 0.01) {
+
+    return {
+
+      ok: false,
+
+      msg:
+        "Percentages add up to " +
+        percentageSum +
+        "% — they must total 100%."
+    };
+  }
+
+
+  let shares = {};
+
+  let runningTotal = 0;
+
+
+  for (let i = 0; i < participants.length; i++) {
+
+    let member = participants[i];
+
+    let percentage =
+      parseFloat(inputs[member]);
+
+
+    if (!percentage) {
+
+      percentage = 0;
+    }
+
+
+    // Give the last person the remaining amount.
     if (i === participants.length - 1) {
-      shares[m] = round2(amount - running);
+
+      shares[member] =
+        round2(amount - runningTotal);
+
     } else {
-      shares[m] = round2((amount * (parseFloat(inputs[m]) || 0)) / 100);
-      running = round2(running + shares[m]);
+
+      shares[member] =
+        round2(
+          (amount * percentage) / 100
+        );
+
+      runningTotal =
+        round2(
+          runningTotal + shares[member]
+        );
     }
   }
-  return { ok: true, shares };
+
+
+  return {
+
+    ok: true,
+
+    shares: shares
+  };
 }
 
-/* ======================================================================
-   SHARED NAVBAR — every page has an empty <div id="navbar"></div> near
-   the top of <body>; this fills it in so the header/nav markup only
-   has to be written once, here, instead of copy-pasted into 7 files.
-   ====================================================================== */
+
+// ================================================================
+// 19. NAVIGATION BAR
+// ================================================================
+
+
+// List of pages in the FairShare navigation bar.
 const NAV_LINKS = [
-  { page: "dashboard", href: "dashboard.html", label: "Dashboard", scoped: false },
-  { page: "group", href: "group.html", label: "Group hub", scoped: true },
-  { page: "members", href: "members.html", label: "Members", scoped: true },
-  { page: "expense", href: "expense.html", label: "Add expense", scoped: true },
-  { page: "ledger", href: "ledger.html", label: "Ledger", scoped: true },
-  { page: "balances", href: "balances.html", label: "Balances", scoped: true },
-  { page: "settlement", href: "settlement.html", label: "Settlement", scoped: true },
+
+  {
+    page: "dashboard",
+    href: "dashboard.html",
+    label: "Dashboard",
+    scoped: false
+  },
+
+  {
+    page: "group",
+    href: "group.html",
+    label: "Group hub",
+    scoped: true
+  },
+
+  {
+    page: "members",
+    href: "members.html",
+    label: "Members",
+    scoped: true
+  },
+
+  {
+    page: "expense",
+    href: "expense.html",
+    label: "Add expense",
+    scoped: true
+  },
+
+  {
+    page: "ledger",
+    href: "ledger.html",
+    label: "Ledger",
+    scoped: true
+  },
+
+  {
+    page: "balances",
+    href: "balances.html",
+    label: "Balances",
+    scoped: true
+  },
+
+  {
+    page: "settlement",
+    href: "settlement.html",
+    label: "Settlement",
+    scoped: true
+  }
 ];
 
-function renderNavbar(user, currentPage, activeGroup) {
-  const box = document.getElementById("navbar");
-  if (!box) return;
 
-  const links = [];
-  for (const link of NAV_LINKS) {
-    if (link.page === currentPage) continue;    // never show a link to the page you're already on
-    if (link.scoped && !activeGroup) continue;  // hide group-only links until a group is chosen
-    links.push(`<a class="nav-link" href="${link.href}">${link.label}</a>`);
+// ================================================================
+// 20. DISPLAY NAVIGATION BAR
+// ================================================================
+
+function renderNavbar(user, currentPage, activeGroup) {
+
+  let box = document.getElementById("navbar");
+
+
+  if (!box) {
+
+    return;
   }
 
-  // Header only shows a small colored circle with the first letter of the
-  // name — clicking it opens the profile page, where the full name, email,
-  // and log-out actually live. Keeps the header itself uncluttered.
-  const letter = firstLetter(user.username);
-  const color = colorForName(user.username);
 
-  box.innerHTML = `
-    <div class="navbar-inner">
-      <a class="brand-mini" href="dashboard.html">Fair<span>Share</span></a>
-      <nav class="nav-links">${links.join("")}</nav>
-      <a class="avatar-link" href="profile.html" style="background:${color}" title="${user.username}'s profile">${letter}</a>
-    </div>
-    ${activeGroup ? `
-      <div class="breadcrumb">
-        Currently editing <b>${activeGroup.name}</b>
-        <a href="dashboard.html" id="btn-switch-group">Switch group</a>
-      </div>` : ""}
-  `;
+  let links = "";
+
+
+  // Go through every navigation link.
+  for (let i = 0; i < NAV_LINKS.length; i++) {
+
+    let link = NAV_LINKS[i];
+
+
+    // Don't show the current page.
+    if (link.page === currentPage) {
+
+      continue;
+    }
+
+
+    // Group pages should only appear when
+    // a group is selected.
+    if (link.scoped && !activeGroup) {
+
+      continue;
+    }
+
+
+    links =
+      links +
+      '<a class="nav-link" href="' +
+      link.href +
+      '">' +
+      link.label +
+      "</a>";
+  }
+
+
+  // Get user's avatar letter.
+  let letter = firstLetter(user.username);
+
+
+  // Get avatar color.
+  let color = colorForName(user.username);
+
+
+  // Create the navigation bar.
+  let html = "";
+
+
+  html =
+    '<div class="navbar-inner">' +
+
+    '<a class="brand-mini" href="dashboard.html">' +
+    'Split<span>Ledger</span>' +
+    "</a>" +
+
+    '<nav class="nav-links">' +
+    links +
+    "</nav>" +
+
+    '<a class="avatar-link" ' +
+    'href="profile.html" ' +
+    'style="background:' + color + '" ' +
+    'title="' + user.username + '\'s profile">' +
+    letter +
+    "</a>" +
+
+    "</div>";
+
+
+  // If a group is active, show the breadcrumb.
+  if (activeGroup) {
+
+    html =
+      html +
+
+      '<div class="breadcrumb">' +
+
+      "Currently editing <b>" +
+      activeGroup.name +
+      "</b>" +
+
+      '<a href="dashboard.html" id="btn-switch-group">' +
+      "Switch group" +
+      "</a>" +
+
+      "</div>";
+  }
+
+
+  box.innerHTML = html;
 }
