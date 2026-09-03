@@ -1093,7 +1093,7 @@ function renderNavbar(user, currentPage, activeGroup) {
     '<div class="navbar-inner">' +
 
     '<a class="brand-mini" href="dashboard.html">' +
-    'Split<span>Ledger</span>' +
+    'Fair<span>Share</span>' +
     "</a>" +
 
     '<nav class="nav-links">' +
