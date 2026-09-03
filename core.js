@@ -322,7 +322,7 @@ function requireLogin() {
 
   if (!user) {
 
-    window.location.href = "login.html";
+    window.location.href = "index.html";
 
     return null;
   }
@@ -338,7 +338,7 @@ function logout() {
 
   session.removeItem(ACTIVE_GROUP_KEY);
 
-  window.location.href = "login.html";
+  window.location.href = "index.html";
 }
 
 
