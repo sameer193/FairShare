@@ -16,7 +16,7 @@ application is easy to open, understand, and use.
 
 No server or installation is required.
 
-1. Open `login.html`.
+1. Open `index.html`.
 2. Create an account using the Sign Up option.
 3. Log in.
 4. You will be taken to `dashboard.html`.
@@ -30,7 +30,7 @@ Live Server extension in VS Code.
 ## Pages
 
 ```text
-login.html          Sign up / Log in
+index.html          Sign up / Log in
 dashboard.html      User dashboard + create/select groups
 group.html           Group overview and quick statistics
 members.html         Add/remove group members
