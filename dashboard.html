@@ -1,43 +1,420 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard — FairShare</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — FairShare</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Dashboard-only styles: shared style.css and other pages remain untouched. */
+    .dashboard-page {
+      max-width: 1120px;
+      padding-top: 38px;
+    }
+
+    .dashboard-hero {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 30px 32px;
+      margin-bottom: 26px;
+      border: 1px solid #d9e7df;
+      border-radius: 20px;
+      background: linear-gradient(120deg, #ffffff 0%, #f0f8f3 72%, #e4f2e9 100%);
+      box-shadow: 0 10px 30px rgba(18, 45, 32, 0.06);
+    }
+
+    .dashboard-hero::after {
+      content: "";
+      position: absolute;
+      width: 230px;
+      height: 230px;
+      right: -72px;
+      top: -105px;
+      border: 1px solid rgba(27, 94, 74, 0.13);
+      border-radius: 50%;
+      box-shadow: 0 0 0 24px rgba(27, 94, 74, 0.035), 0 0 0 50px rgba(27, 94, 74, 0.025);
+      pointer-events: none;
+    }
+
+    .dashboard-hero-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 720px;
+    }
+
+    .dashboard-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 12px;
+      color: #1b5e4a;
+      font: 600 11px/1.4 var(--mono);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .dashboard-kicker::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #2fa37c;
+      box-shadow: 0 0 0 4px rgba(47, 163, 124, .12);
+    }
+
+    .dashboard-hero .page-head {
+      margin: 0;
+    }
+
+    .dashboard-hero .page-head h1 {
+      margin: 0;
+      color: #121814;
+      font: 800 clamp(30px, 4vw, 42px)/1.08 var(--display);
+      letter-spacing: -.045em;
+    }
+
+    .dashboard-hero .page-head p {
+      max-width: 580px;
+      margin: 12px 0 0;
+      color: #627168;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .dashboard-hero-note {
+      position: relative;
+      z-index: 1;
+      flex: 0 0 auto;
+      padding: 10px 13px;
+      border: 1px solid #d5e5dc;
+      border-radius: 999px;
+      color: #285c49;
+      background: rgba(255, 255, 255, .78);
+      font: 500 11px/1.4 var(--mono);
+      white-space: nowrap;
+    }
+
+    .dashboard-section-label {
+      margin: 0 0 13px 2px;
+      color: #78877e;
+      font: 600 10px/1.4 var(--mono);
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .dashboard-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .dashboard-stat-grid .stat {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+      padding: 21px 20px 20px;
+      border: 1px solid #e0e8e3;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 4px 14px rgba(18, 24, 20, .035);
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+
+    .dashboard-stat-grid .stat::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 3px;
+      background: #2fa37c;
+    }
+
+    .dashboard-stat-grid .stat:nth-child(2)::before {
+      background: #d6a15e;
+    }
+
+    .dashboard-stat-grid .stat:nth-child(3)::before {
+      background: #7f9bc2;
+    }
+
+    .dashboard-stat-grid .stat:nth-child(4)::before {
+      background: #a18ac2;
+    }
+
+    .dashboard-stat-grid .stat:hover {
+      transform: translateY(-3px);
+      border-color: #c7dbcf;
+      box-shadow: 0 10px 24px rgba(18, 45, 32, .08);
+    }
+
+    .dashboard-stat-grid .stat b {
+      display: block;
+      margin: 0 0 9px;
+      color: #14271e;
+      font: 700 clamp(25px, 2.5vw, 31px)/1.1 var(--display);
+      letter-spacing: -.04em;
+      overflow-wrap: anywhere;
+    }
+
+    .dashboard-stat-grid .stat small {
+      display: block;
+      color: #718077;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .dashboard-lower-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, .78fr) minmax(0, 1.22fr);
+      align-items: start;
+      gap: 18px;
+    }
+
+    .dashboard-page .card {
+      min-width: 0;
+      padding: 25px;
+      border: 1px solid #e0e8e3;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 5px 18px rgba(18, 24, 20, .035);
+    }
+
+    .dashboard-page .card h2 {
+      margin: 0;
+      color: #18251e;
+      font: 700 19px/1.3 var(--display);
+      letter-spacing: -.025em;
+    }
+
+    .dashboard-page .card h2::before {
+      content: none !important;
+    }
+
+    .dashboard-create-card .dashboard-card-intro {
+      margin: 9px 0 19px;
+      color: #77847c;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .dashboard-page .row {
+      display: flex;
+      align-items: stretch;
+      gap: 9px;
+    }
+
+    .dashboard-page #group-name {
+      width: 100%;
+      min-width: 0;
+      min-height: 45px;
+      padding: 0 13px;
+      border: 1px solid #d8e2db;
+      border-radius: 10px;
+      outline: none;
+      color: #18251e;
+      background: #fbfdfb;
+      font: 400 13px var(--sans);
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+
+    .dashboard-page #group-name:focus {
+      border-color: #4c9b7c;
+      box-shadow: 0 0 0 3px rgba(47, 163, 124, .13);
+    }
+
+    .dashboard-page #btn-create-group {
+      flex: 0 0 auto;
+      min-height: 45px;
+      padding: 0 15px;
+      border: 0;
+      border-radius: 10px;
+      color: #fff;
+      background: #1b5e4a;
+      font: 600 12px var(--sans);
+      cursor: pointer;
+      transition: background .18s ease, transform .18s ease;
+    }
+
+    .dashboard-page #btn-create-group:hover {
+      background: #0f3d30;
+      transform: translateY(-1px);
+    }
+
+    .dashboard-page #btn-create-group:focus-visible {
+      outline: 3px solid rgba(47, 163, 124, .35);
+      outline-offset: 2px;
+    }
+
+    .dashboard-page .error-msg {
+      margin-top: 9px;
+      font-size: 12px;
+    }
+
+    .dashboard-groups-card .dashboard-groups-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 17px;
+    }
+
+    .dashboard-groups-heading p {
+      margin: 5px 0 0;
+      color: #7a877f;
+      font-size: 12px;
+    }
+
+    .dashboard-groups-heading .dashboard-count-label {
+      flex: 0 0 auto;
+      padding: 6px 9px;
+      border: 1px solid #dce9e0;
+      border-radius: 999px;
+      color: #2b6a51;
+      background: #f1f8f3;
+      font: 500 10px var(--mono);
+    }
+
+    .dashboard-page .group-grid {
+      gap: 12px;
+    }
+
+    .dashboard-page .group-card {
+      border: 1px solid #e0e8e3;
+      border-radius: 13px;
+      background: #fbfdfb;
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+
+    .dashboard-page .group-card:hover {
+      transform: translateY(-2px);
+      border-color: #b8d3c3;
+      box-shadow: 0 8px 18px rgba(18, 45, 32, .07);
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .dashboard-lower-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .dashboard-page {
+        padding: 20px 14px 45px;
+      }
+
+      .dashboard-hero {
+        display: block;
+        padding: 24px 20px;
+        border-radius: 16px;
+      }
+
+      .dashboard-hero-note {
+        display: inline-flex;
+        margin-top: 18px;
+        white-space: normal;
+      }
+
+      .dashboard-stat-grid {
+        gap: 10px;
+        margin-bottom: 23px;
+      }
+
+      .dashboard-stat-grid .stat {
+        padding: 17px 14px 16px;
+        border-radius: 13px;
+      }
+
+      .dashboard-stat-grid .stat b {
+        font-size: 25px;
+      }
+
+      .dashboard-page .card {
+        padding: 20px 16px;
+        border-radius: 15px;
+      }
+
+      .dashboard-page .row {
+        flex-direction: column;
+      }
+
+      .dashboard-page #btn-create-group {
+        width: 100%;
+      }
+
+      .dashboard-groups-card .dashboard-groups-heading {
+        align-items: flex-start;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      .dashboard-stat-grid .stat,
+      .dashboard-page .group-card,
+      .dashboard-page #btn-create-group {
+        transition: none;
+      }
+    }
+  </style>
 </head>
+
 <body>
+  <div id="navbar"></div>
+  <main class="page dashboard-page">
+    <section class="dashboard-hero" aria-labelledby="greeting">
+      <div class="dashboard-hero-copy">
+        <p class="dashboard-kicker">Your FairShare overview</p>
+        <div class="page-head">
+          <h1 id="greeting">Dashboard</h1>
+          <p>Your groups, shared expenses, and settlement activity — all in one place.</p>
+        </div>
+      </div>
+      <div class="dashboard-hero-note">SHARED CLEARLY. SETTLED FAIRLY.</div>
+    </section>
 
-<div id="navbar"></div>
+    <p class="dashboard-section-label">At a glance</p>
+    <div class="stat-grid dashboard-stat-grid" id="stat-grid"></div>
 
-<main class="page">
-  <div class="page-head">
-    <h1 id="greeting">Dashboard</h1>
-    <p>Everything you own across every group, plus how much the whole site is trusted with.</p>
-  </div>
+    <div class="dashboard-lower-grid">
+      <section class="card dashboard-create-card">
+        <p class="dashboard-kicker">Get started</p>
+        <h2>Create a new group</h2>
+        <p class="dashboard-card-intro">Planning a trip, sharing a flat, or splitting a dinner? Start your group here.
+        </p>
+        <div class="row">
+          <input id="group-name" type="text" placeholder="e.g. Goa Trip" maxlength="40" aria-label="New group name" />
+          <button class="btn-primary-inline" id="btn-create-group" type="button">Create group</button>
+        </div>
+        <div class="error-msg" id="group-error" aria-live="polite"></div>
+      </section>
 
-  <div class="stat-grid" id="stat-grid"></div>
-
-  <section class="card">
-    <h2>Create a new group</h2>
-    <div class="row">
-      <input id="group-name" type="text" placeholder="e.g. Goa Trip" maxlength="40" />
-      <button class="btn-primary-inline" id="btn-create-group">Create group</button>
+      <section class="card dashboard-groups-card">
+        <div class="dashboard-groups-heading">
+          <div>
+            <h2>Your groups</h2>
+            <p>Open a group to see expenses and balances.</p>
+          </div>
+          <span class="dashboard-count-label">YOUR SPACE</span>
+        </div>
+        <div class="group-grid" id="group-grid"></div>
+      </section>
     </div>
-    <div class="error-msg" id="group-error"></div>
-  </section>
-
-  <section class="card">
-    <h2>Your groups</h2>
-    <div class="group-grid" id="group-grid"></div>
-  </section>
-</main>
-
-<div class="toast" id="toast"></div>
-
-<script src="core.js"></script>
-<script src="dashboard.js"></script>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="core.js"></script>
+  <script src="dashboard.js"></script>
 </body>
+
 </html>

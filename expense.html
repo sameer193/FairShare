@@ -1,62 +1,545 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Add expense — FairShare</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add expense — FairShare</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Expense-page-only styling. Existing shared styles and expense.js are preserved. */
+    .expense-page {
+      max-width: 1000px;
+      padding-top: 36px;
+    }
+
+    .expense-hero {
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 22px;
+      padding: 27px 30px;
+      border: 1px solid #d9e7df;
+      border-radius: 19px;
+      background: linear-gradient(120deg, #fff 0%, #f3f9f5 72%, #e5f3e9 100%);
+      box-shadow: 0 10px 28px rgba(18, 45, 32, .05);
+    }
+
+    .expense-hero::after {
+      content: "";
+      position: absolute;
+      width: 190px;
+      height: 190px;
+      right: -62px;
+      top: -105px;
+      border: 1px solid rgba(27, 94, 74, .13);
+      border-radius: 50%;
+      box-shadow: 0 0 0 22px rgba(27, 94, 74, .035), 0 0 0 46px rgba(27, 94, 74, .025);
+      pointer-events: none;
+    }
+
+    .expense-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 10px;
+      color: #1b5e4a;
+      font: 600 10px/1.4 var(--mono);
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .expense-kicker::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #2fa37c;
+      box-shadow: 0 0 0 4px rgba(47, 163, 124, .12);
+    }
+
+    .expense-hero h1 {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      color: #14271e;
+      font: 800 clamp(29px, 4vw, 39px)/1.1 var(--display);
+      letter-spacing: -.045em;
+    }
+
+    .expense-hero p {
+      position: relative;
+      z-index: 1;
+      max-width: 650px;
+      margin: 11px 0 0;
+      color: #65756b;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .expense-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(235px, .75fr);
+      align-items: start;
+      gap: 18px;
+    }
+
+    .expense-form-card,
+    .expense-side-card {
+      min-width: 0;
+      padding: 26px;
+      border: 1px solid #e0e8e3;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 5px 18px rgba(18, 24, 20, .035);
+    }
+
+    .expense-card-heading {
+      display: flex;
+      align-items: flex-start;
+      gap: 13px;
+      margin-bottom: 23px;
+    }
+
+    .expense-heading-icon {
+      display: grid;
+      flex: 0 0 42px;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border: 1px solid #dcebe1;
+      border-radius: 13px;
+      color: #1b5e4a;
+      background: #f0f8f3;
+      font-size: 20px;
+    }
+
+    .expense-card-heading h2,
+    .expense-side-card h2 {
+      margin: 0;
+      color: #18251e;
+      font: 700 18px/1.35 var(--display);
+      letter-spacing: -.025em;
+    }
+
+    .expense-card-heading p {
+      margin: 5px 0 0;
+      color: #7a877f;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .expense-page #expense-form label {
+      display: block;
+      margin: 0 0 8px;
+      color: #34463b;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .expense-page #expense-form input,
+    .expense-page #expense-form select {
+      box-sizing: border-box;
+      width: 100%;
+      min-width: 0;
+      min-height: 45px;
+      margin-bottom: 19px;
+      padding: 0 13px;
+      border: 1px solid #d9e3dc;
+      border-radius: 10px;
+      outline: none;
+      color: #18251e;
+      background: #fbfdfb;
+      font: 400 13px var(--sans);
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+
+    .expense-page #expense-form input:focus,
+    .expense-page #expense-form select:focus {
+      border-color: #4c9b7c;
+      box-shadow: 0 0 0 3px rgba(47, 163, 124, .13);
+    }
+
+    .expense-page #expense-form input::placeholder {
+      color: #a0aaa3;
+    }
+
+    .expense-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .expense-form-row>div {
+      min-width: 0;
+    }
+
+    .expense-page .hint-line {
+      margin: -2px 0 13px;
+      color: #7a877f;
+      font-size: 11px;
+      line-height: 1.65;
+    }
+
+    .expense-participant-panel {
+      margin-bottom: 22px;
+      padding: 14px;
+      border: 1px solid #e1eae4;
+      border-radius: 13px;
+      background: #f9fcfa;
+    }
+
+    .expense-participant-panel #participant-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    /* Participant controls are generated by expense.js; style common control wrappers safely. */
+    .expense-participant-panel #participant-list>* {
+      min-width: 0;
+    }
+
+    .expense-page .participant-list label {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0;
+      padding: 10px 11px;
+      border: 1px solid #e1e9e3;
+      border-radius: 9px;
+      background: #fff;
+      font-weight: 500;
+    }
+
+    .expense-page .participant-list input[type="checkbox"] {
+      width: 16px;
+      min-height: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: #1b5e4a;
+    }
+
+    .expense-section-label {
+      display: block;
+      margin: 0 0 9px;
+      color: #34463b;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .expense-page #split-mode {
+      display: flex;
+      gap: 5px;
+      margin: 0 0 17px;
+      padding: 5px;
+      border: 1px solid #e1e9e3;
+      border-radius: 12px;
+      background: #f5f8f6;
+    }
+
+    .expense-page #split-mode button {
+      flex: 1;
+      min-width: 0;
+      min-height: 39px;
+      padding: 8px 10px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      color: #66756b;
+      background: transparent;
+      font: 600 12px var(--sans);
+      cursor: pointer;
+      transition: color .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+
+    .expense-page #split-mode button.active {
+      border-color: #d8e7dd;
+      color: #1b5e4a;
+      background: #fff;
+      box-shadow: 0 2px 6px rgba(18, 45, 32, .07);
+    }
+
+    .expense-page #split-mode button:focus-visible {
+      outline: 2px solid #2fa37c;
+      outline-offset: 2px;
+    }
+
+    .expense-page .split-inputs {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .expense-page .split-inputs input,
+    .expense-page .split-inputs select {
+      margin-bottom: 0 !important;
+    }
+
+    .expense-page .split-hint {
+      margin: 8px 0 17px;
+      color: #65756b;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .expense-page #expense-error {
+      margin: 0 0 12px;
+      color: #b33a32;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .expense-page .btn-primary[type="submit"] {
+      width: 100%;
+      min-height: 47px;
+      border: 0;
+      border-radius: 11px;
+      color: #fff;
+      background: #1b5e4a;
+      font: 700 13px var(--sans);
+      cursor: pointer;
+      transition: background .18s ease, transform .18s ease;
+    }
+
+    .expense-page .btn-primary[type="submit"]:hover {
+      background: #0f3d30;
+      transform: translateY(-1px);
+    }
+
+    .expense-side-card {
+      position: sticky;
+      top: 22px;
+    }
+
+    .expense-side-card h2 {
+      margin-bottom: 7px;
+    }
+
+    .expense-side-lead {
+      margin: 0 0 19px;
+      color: #7a877f;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .expense-step {
+      display: flex;
+      gap: 12px;
+      padding: 14px 0;
+      border-top: 1px solid #edf1ee;
+    }
+
+    .expense-step-number {
+      display: grid;
+      flex: 0 0 29px;
+      width: 29px;
+      height: 29px;
+      place-items: center;
+      border-radius: 9px;
+      color: #1b5e4a;
+      background: #edf7f0;
+      font: 600 11px var(--mono);
+    }
+
+    .expense-step strong {
+      display: block;
+      margin: 1px 0 4px;
+      color: #2a3b30;
+      font-size: 12px;
+    }
+
+    .expense-step span:last-child {
+      display: block;
+      color: #7a877f;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .expense-side-note {
+      margin-top: 12px;
+      padding: 13px;
+      border: 1px solid #dcebe1;
+      border-radius: 11px;
+      color: #41604e;
+      background: #f1f8f3;
+      font-size: 11px;
+      line-height: 1.65;
+    }
+
+    @media (max-width: 820px) {
+      .expense-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .expense-side-card {
+        position: static;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .expense-page {
+        padding: 20px 14px 45px;
+      }
+
+      .expense-hero {
+        padding: 23px 19px;
+        border-radius: 16px;
+      }
+
+      .expense-form-card,
+      .expense-side-card {
+        padding: 20px 16px;
+        border-radius: 15px;
+      }
+
+      .expense-form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      .expense-page #split-mode {
+        gap: 3px;
+        padding: 4px;
+      }
+
+      .expense-page #split-mode button {
+        padding: 8px 4px;
+        font-size: 11px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      .expense-page #expense-form input,
+      .expense-page #expense-form select,
+      .expense-page #split-mode button,
+      .expense-page .btn-primary[type="submit"] {
+        transition: none;
+      }
+    }
+
+    /* Fix participant checkbox sizing */
+    .expense-page #participant-list input[type="checkbox"] {
+      appearance: auto;
+      -webkit-appearance: checkbox;
+      width: 16px !important;
+      height: 16px !important;
+      min-height: 16px !important;
+      margin: 0 8px 0 0 !important;
+      padding: 0 !important;
+      flex: 0 0 16px;
+      accent-color: #1b5e4a;
+    }
+
+    .expense-page #participant-list label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      text-align: left;
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="navbar"></div>
+  <div id="navbar"></div>
 
-<main class="page">
-  <div class="page-head">
-    <h1>Add expense</h1>
-    <p>Log a bill, choose who paid, and decide how it's split.</p>
-  </div>
+  <main class="page expense-page">
+    <section class="expense-hero">
+      <span class="expense-kicker">GROUP EXPENSES</span>
+      <h1>Add an expense</h1>
+      <p>Capture the bill, choose who paid, and split the cost fairly across your group.</p>
+    </section>
 
-  <section class="card">
-    <form id="expense-form" novalidate>
-      <label for="exp-desc">Description</label>
-      <input id="exp-desc" type="text" placeholder="e.g. Dinner at Sagar Ratna" maxlength="60" required />
-
-      <div class="row">
-        <div>
-          <label for="exp-amount">Amount (₹)</label>
-          <input id="exp-amount" type="number" step="0.01" min="0.01" placeholder="0.00" required />
+    <div class="expense-layout">
+      <section class="expense-form-card">
+        <div class="expense-card-heading">
+          <span class="expense-heading-icon" aria-hidden="true">₹</span>
+          <div>
+            <h2>Expense details</h2>
+            <p>Enter the bill information and choose how everyone shares it.</p>
+          </div>
         </div>
-        <div>
-          <label for="exp-payer">Paid by</label>
-          <select id="exp-payer" required></select>
+
+        <form id="expense-form" novalidate>
+          <label for="exp-desc">Description</label>
+          <input id="exp-desc" type="text" placeholder="e.g. Dinner at Sagar Ratna" maxlength="60" required />
+
+          <div class="expense-form-row">
+            <div>
+              <label for="exp-amount">Amount (₹)</label>
+              <input id="exp-amount" type="number" step="0.01" min="0.01" placeholder="0.00" required />
+            </div>
+            <div>
+              <label for="exp-payer">Paid by</label>
+              <select id="exp-payer" required></select>
+            </div>
+          </div>
+
+          <span class="expense-section-label">Split among</span>
+          <p class="hint-line">Untick anyone who isn't part of this bill. The cost will be shared only among the
+            selected people.</p>
+          <div class="expense-participant-panel">
+            <div class="participant-list" id="participant-list"></div>
+          </div>
+
+          <span class="expense-section-label">Split method</span>
+          <div class="segmented" id="split-mode" role="tablist" aria-label="Choose a split method">
+            <button type="button" class="active" data-mode="equal" role="tab" aria-selected="true">Equal</button>
+            <button type="button" data-mode="exact" role="tab" aria-selected="false">Exact ₹</button>
+            <button type="button" data-mode="percentage" role="tab" aria-selected="false">Percent %</button>
+          </div>
+
+          <div class="split-inputs" id="split-inputs"></div>
+          <div class="split-hint" id="split-hint" aria-live="polite"></div>
+
+          <div class="error-msg" id="expense-error" role="alert" aria-live="polite"></div>
+          <button class="btn-primary" type="submit">Add expense</button>
+        </form>
+      </section>
+
+      <aside class="expense-side-card">
+        <span class="expense-kicker">QUICK GUIDE</span>
+        <h2>Split it your way</h2>
+        <p class="expense-side-lead">Choose the method that matches how your group shared the bill.</p>
+
+        <div class="expense-step">
+          <span class="expense-step-number">01</span>
+          <div>
+            <strong>Equal split</strong>
+            <span>Everyone selected pays the same share, with rounding handled by FairShare.</span>
+          </div>
         </div>
-      </div>
+        <div class="expense-step">
+          <span class="expense-step-number">02</span>
+          <div>
+            <strong>Exact amounts</strong>
+            <span>Enter each person's share when the bill wasn't divided evenly.</span>
+          </div>
+        </div>
+        <div class="expense-step">
+          <span class="expense-step-number">03</span>
+          <div>
+            <strong>Percentage split</strong>
+            <span>Assign a percentage to each selected person. The total must add up to 100%.</span>
+          </div>
+        </div>
 
-      <label>Split among</label>
-      <p class="hint-line" style="margin-top:-4px">Untick anyone who isn't part of this particular bill — the split only happens across the people checked below.</p>
-      <div class="participant-list" id="participant-list"></div>
+        <div class="expense-side-note">
+          <strong>Tip:</strong> Check the selected participants and split amounts before saving. The expense will be
+          added to your active group.
+        </div>
+      </aside>
+    </div>
+  </main>
 
-      <label>Split method</label>
-      <div class="segmented" id="split-mode" role="tablist">
-        <button type="button" class="active" data-mode="equal">Equal</button>
-        <button type="button" data-mode="exact">Exact ₹</button>
-        <button type="button" data-mode="percentage">Percent %</button>
-      </div>
+  <div class="toast" id="toast"></div>
 
-      <div class="split-inputs" id="split-inputs"></div>
-      <div class="split-hint" id="split-hint"></div>
-
-      <div class="error-msg" id="expense-error"></div>
-      <button class="btn-primary" type="submit">Add expense</button>
-    </form>
-  </section>
-</main>
-
-<div class="toast" id="toast"></div>
-
-<script src="core.js"></script>
-<script src="expense.js"></script>
+  <script src="core.js"></script>
+  <script src="expense.js"></script>
 </body>
+
 </html>

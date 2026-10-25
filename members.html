@@ -1,42 +1,396 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Members — FairShare</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Members — FairShare</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Members-page-only styles. Existing members.js IDs and behavior are preserved. */
+    .members-page {
+      max-width: 1000px;
+      padding-top: 34px;
+    }
+
+    .members-hero {
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 22px;
+      padding: 28px 30px;
+      border: 1px solid #d9e7df;
+      border-radius: 19px;
+      background: linear-gradient(120deg, #fff 0%, #f2f9f4 72%, #e5f3e9 100%);
+      box-shadow: 0 10px 28px rgba(18, 45, 32, .05);
+    }
+
+    .members-hero::after {
+      content: "";
+      position: absolute;
+      top: -105px;
+      right: -58px;
+      width: 190px;
+      height: 190px;
+      border: 1px solid rgba(27, 94, 74, .13);
+      border-radius: 50%;
+      box-shadow: 0 0 0 22px rgba(27, 94, 74, .035), 0 0 0 46px rgba(27, 94, 74, .025);
+      pointer-events: none;
+    }
+
+    .members-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 10px;
+      color: #1b5e4a;
+      font: 600 10px/1.4 var(--mono);
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .members-kicker::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #2fa37c;
+      box-shadow: 0 0 0 4px rgba(47, 163, 124, .12);
+    }
+
+    .members-hero h1 {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      color: #14271e;
+      font: 800 clamp(30px, 4vw, 40px)/1.1 var(--display);
+      letter-spacing: -.045em;
+    }
+
+    .members-hero p {
+      position: relative;
+      z-index: 1;
+      max-width: 620px;
+      margin: 11px 0 0;
+      color: #65756b;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .members-layout {
+      display: grid;
+      grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .members-card {
+      min-width: 0;
+      padding: 25px;
+      border: 1px solid #e0e8e3;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 5px 18px rgba(18, 24, 20, .035);
+    }
+
+    .members-card-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .members-icon {
+      display: grid;
+      flex: 0 0 40px;
+      width: 40px;
+      height: 40px;
+      place-items: center;
+      border: 1px solid #dcebe1;
+      border-radius: 12px;
+      color: #1b5e4a;
+      background: #f0f8f3;
+      font-size: 18px;
+    }
+
+    .members-card h2 {
+      margin: 0;
+      color: #18251e;
+      font: 700 18px/1.35 var(--display);
+      letter-spacing: -.025em;
+    }
+
+    .members-card-head p,
+    .members-description {
+      margin: 5px 0 0;
+      color: #7a877f;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .members-page #member-name {
+      box-sizing: border-box;
+      width: 100%;
+      min-width: 0;
+      min-height: 46px;
+      margin: 0 0 12px;
+      padding: 0 13px;
+      border: 1px solid #d9e3dc;
+      border-radius: 10px;
+      outline: none;
+      color: #18251e;
+      background: #fbfdfb;
+      font: 400 13px var(--sans);
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+
+    .members-page #member-name:focus {
+      border-color: #4c9b7c;
+      box-shadow: 0 0 0 3px rgba(47, 163, 124, .13);
+    }
+
+    .members-page #member-name::placeholder {
+      color: #a0aaa3;
+    }
+
+    .members-page .members-add-row {
+      display: flex;
+      gap: 9px;
+    }
+
+    .members-page #btn-add-member {
+      flex: 0 0 auto;
+      min-height: 46px;
+      padding: 0 18px;
+      border: 1px solid #1b5e4a;
+      border-radius: 10px;
+      color: #fff;
+      background: #1b5e4a;
+      font: 600 12px var(--sans);
+      cursor: pointer;
+      transition: background .18s ease, transform .18s ease;
+    }
+
+    .members-page #btn-add-member:hover {
+      background: #0f3d30;
+      transform: translateY(-1px);
+    }
+
+    .members-page #member-error {
+      margin-top: 10px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .members-list-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .members-list-heading p {
+      margin: 5px 0 0;
+      color: #7a877f;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .members-count-label {
+      flex: 0 0 auto;
+      padding: 6px 9px;
+      border: 1px solid #dce9e0;
+      border-radius: 999px;
+      color: #2b6a51;
+      background: #f1f8f3;
+      font: 500 10px var(--mono);
+    }
+
+    .members-page .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .members-page .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      max-width: 100%;
+      padding: 7px 8px 7px 7px;
+      border: 1px solid #d5e9dd;
+      border-radius: 999px;
+      color: #294b39;
+      background: #eff8f2;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .members-page .chip .avatar {
+      display: grid;
+      flex: 0 0 29px;
+      width: 29px;
+      height: 29px;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      background: #1b5e4a;
+      font: 600 10px var(--mono);
+    }
+
+    .members-page .chip button {
+      display: grid;
+      flex: 0 0 25px;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      color: #718077;
+      background: transparent;
+      font-size: 17px;
+      line-height: 1;
+      cursor: pointer;
+      transition: color .18s ease, background .18s ease;
+    }
+
+    .members-page .chip button:hover {
+      color: #b5472d;
+      background: #fdece6;
+    }
+
+    .members-page .chip button:focus-visible {
+      outline: 2px solid #2fa37c;
+      outline-offset: 2px;
+    }
+
+    .members-page .empty-state {
+      width: 100%;
+      padding: 28px 18px;
+      border: 1px dashed #d4e2d8;
+      border-radius: 13px;
+      color: #7a877f;
+      background: #f9fcfa;
+      text-align: center;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .members-page .empty-state b {
+      display: block;
+      margin-bottom: 5px;
+      color: #294b39;
+      font: 700 14px var(--display);
+    }
+
+    .members-tip {
+      margin-top: 17px;
+      padding: 12px 13px;
+      border: 1px solid #dcebe1;
+      border-radius: 11px;
+      color: #41604e;
+      background: #f1f8f3;
+      font-size: 11px;
+      line-height: 1.65;
+    }
+
+    @media (max-width: 760px) {
+      .members-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .members-page {
+        padding: 20px 14px 45px;
+      }
+
+      .members-hero {
+        padding: 23px 19px;
+        border-radius: 16px;
+      }
+
+      .members-card {
+        padding: 20px 16px;
+        border-radius: 15px;
+      }
+
+      .members-page .members-add-row {
+        flex-direction: column;
+      }
+
+      .members-page #btn-add-member {
+        width: 100%;
+      }
+
+      .members-list-heading {
+        align-items: flex-start;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      .members-page #member-name,
+      .members-page #btn-add-member,
+      .members-page .chip button {
+        transition: none;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="navbar"></div>
+  <div id="navbar"></div>
 
-<main class="page">
-  <div class="page-head">
-    <h1>Members</h1>
-    <p>Everyone who might show up in an expense for this group.</p>
-  </div>
+  <main class="page members-page">
+    <section class="members-hero">
+      <span class="members-kicker">YOUR GROUP PEOPLE</span>
+      <h1>Members</h1>
+      <p>Keep the people in your group organized. Add members before recording shared expenses.</p>
+    </section>
 
-  <section class="card">
-    <h2>Add members</h2>
-    <p class="hint-line">Add one member, or several at once separated by commas — handy if you forgot someone earlier and remember a bunch of names later.</p>
-    <div class="row">
-      <input id="member-name" type="text" placeholder="e.g. Aarav, Priya, Kabir" />
-      <button class="btn-ghost" id="btn-add-member" style="flex:0 0 auto">Add</button>
+    <div class="members-layout">
+      <section class="card members-card">
+        <div class="members-card-head">
+          <span class="members-icon" aria-hidden="true">＋</span>
+          <div>
+            <h2>Add members</h2>
+            <p>Add one name or several names separated by commas.</p>
+          </div>
+        </div>
+        <div class="members-add-row">
+          <input id="member-name" type="text" placeholder="e.g. Aarav, Priya, Kabir" aria-label="Member names" />
+          <button class="btn-ghost" id="btn-add-member" type="button">Add members</button>
+        </div>
+        <p class="members-description">Duplicate names are skipped automatically.</p>
+        <div class="error-msg" id="member-error" role="alert" aria-live="polite"></div>
+        <div class="members-tip"><strong>Tip:</strong> Use the names your group recognizes. Members with existing
+          expenses or payments can't be removed until their financial history is resolved.</div>
+      </section>
+
+      <section class="card members-card">
+        <div class="members-list-heading">
+          <div>
+            <h2>Current members</h2>
+            <p>Everyone who can be included in this group's expenses.</p>
+          </div>
+          <span class="members-count-label">GROUP LIST</span>
+        </div>
+        <div class="chip-list" id="member-list"></div>
+      </section>
     </div>
-    <div class="error-msg" id="member-error"></div>
-  </section>
+  </main>
 
-  <section class="card">
-    <h2>Current members</h2>
-    <div class="chip-list" id="member-list"></div>
-  </section>
-</main>
+  <div class="toast" id="toast"></div>
 
-<div class="toast" id="toast"></div>
-
-<script src="core.js"></script>
-<script src="members.js"></script>
+  <script src="core.js"></script>
+  <script src="members.js"></script>
 </body>
+
 </html>

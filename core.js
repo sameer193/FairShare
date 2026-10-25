@@ -507,90 +507,191 @@ function peekActiveGroup(user) {
 //
 // Negative balance:
 // Person needs to pay money.
+
 function computeBalances(group) {
 
-  let balances = {};
+  // Store balances as whole paisa internally.
+  // This helps avoid floating-point calculation errors.
+  let balances = Object.create(null);
 
+  // Step 1: Check group data.
+  if (!group || !Array.isArray(group.members)) {
+    return balances;
+  }
 
-  // First give every member a balance of 0.
+  // Step 2: Initialize every valid member's balance.
   for (let i = 0; i < group.members.length; i++) {
 
     let member = group.members[i];
 
-    balances[member] = 0;
+    if (
+      typeof member === "string" &&
+      member.trim() !== "" &&
+      !Object.prototype.hasOwnProperty.call(balances, member)
+    ) {
+      balances[member] = 0;
+    }
   }
 
+  // Convert an amount into whole paisa.
+  // Return null if the amount is invalid.
+  function toCents(value, allowZero) {
 
-  // Go through every expense.
-  for (let i = 0; i < group.expenses.length; i++) {
+    if (
+      value === null ||
+      value === undefined ||
+      String(value).trim() === ""
+    ) {
+      return null;
+    }
 
-    let expense = group.expenses[i];
+    let number = Number(value);
+
+    if (!Number.isFinite(number) || number < 0) {
+      return null;
+    }
+
+    let cents = Math.round(round2(number) * 100);
+
+    if (!Number.isSafeInteger(cents)) {
+      return null;
+    }
+
+    if (!allowZero && cents <= 0) {
+      return null;
+    }
+
+    return cents;
+  }
+
+  // Step 3: Process expenses.
+  let expenses = Array.isArray(group.expenses)
+    ? group.expenses
+    : [];
+
+  for (let i = 0; i < expenses.length; i++) {
+
+    let expense = expenses[i];
+
+    if (!expense || typeof expense !== "object") {
+      continue;
+    }
 
     let payer = expense.payer;
 
-    let amount = expense.amount;
+    // The payer must be a member of this group.
+    if (!Object.prototype.hasOwnProperty.call(balances, payer)) {
+      continue;
+    }
+
+    let amountCents = toCents(expense.amount, false);
+
+    if (amountCents === null) {
+      continue;
+    }
 
     let shares = expense.shares;
 
-
-    // The person who paid gets credit.
-    if (balances[payer] !== undefined) {
-
-      balances[payer] = balances[payer] + amount;
+    if (
+      !shares ||
+      typeof shares !== "object" ||
+      Array.isArray(shares)
+    ) {
+      continue;
     }
 
+    let shareMembers = Object.keys(shares);
+    let validShares = [];
+    let validExpense = shareMembers.length > 0;
 
-    // Subtract each person's share.
-    for (let member in shares) {
+    // Validate all shares before applying the expense.
+    for (let j = 0; j < shareMembers.length; j++) {
 
-      if (balances[member] !== undefined) {
+      let member = shareMembers[j];
 
-        balances[member] =
-          balances[member] - shares[member];
+      if (!Object.prototype.hasOwnProperty.call(balances, member)) {
+        validExpense = false;
+        break;
       }
+
+      let shareCents = toCents(shares[member], true);
+
+      if (shareCents === null) {
+        validExpense = false;
+        break;
+      }
+
+      validShares.push({
+        member: member,
+        cents: shareCents
+      });
+    }
+
+    // Do not partially process an invalid expense.
+    if (!validExpense) {
+      continue;
+    }
+
+    // The person who paid receives credit.
+    balances[payer] = balances[payer] + amountCents;
+
+    // Subtract each member's expense share.
+    for (let j = 0; j < validShares.length; j++) {
+
+      let item = validShares[j];
+
+      balances[item.member] =
+        balances[item.member] - item.cents;
     }
   }
 
+  // Step 4: Apply recorded payments.
+  let settlements = Array.isArray(group.settlements)
+    ? group.settlements
+    : [];
 
-  // Now apply payments that have already been made.
-  for (let i = 0; i < group.settlements.length; i++) {
+  for (let i = 0; i < settlements.length; i++) {
 
-    let settlement = group.settlements[i];
+    let settlement = settlements[i];
+
+    if (!settlement || typeof settlement !== "object") {
+      continue;
+    }
 
     let from = settlement.from;
-
     let to = settlement.to;
 
-    let amount = settlement.amount;
-
-
-    // Person who paid gets credit.
-    if (balances[from] !== undefined) {
-
-      balances[from] =
-        balances[from] + amount;
+    // Both people must exist in this group.
+    if (
+      !Object.prototype.hasOwnProperty.call(balances, from) ||
+      !Object.prototype.hasOwnProperty.call(balances, to) ||
+      from === to
+    ) {
+      continue;
     }
 
+    let amountCents = toCents(settlement.amount, false);
 
-    // Person who received the payment gets lower balance.
-    if (balances[to] !== undefined) {
-
-      balances[to] =
-        balances[to] - amount;
+    if (amountCents === null) {
+      continue;
     }
+
+    // The payer's debt decreases.
+    balances[from] = balances[from] + amountCents;
+
+    // The receiver's credit decreases.
+    balances[to] = balances[to] - amountCents;
   }
 
+  // Step 5: Convert whole paisa back to rupees.
+  for (let member of Object.keys(balances)) {
 
-  // Round all balances to 2 decimal places.
-  for (let member in balances) {
-
-    balances[member] =
-      round2(balances[member]);
+    balances[member] = round2(balances[member] / 100);
   }
-
 
   return balances;
 }
+
 
 
 // ================================================================
@@ -598,17 +699,127 @@ function computeBalances(group) {
 // ================================================================
 
 
+
 function recordSettlement(group, from, to, amount) {
 
-  let settlement = {
+  // Step 1: Validate the group.
+  if (!group || !Array.isArray(group.members)) {
+    return {
+      ok: false,
+      msg: "The group data is not valid."
+    };
+  }
 
+  if (!Array.isArray(group.expenses)) {
+    group.expenses = [];
+  }
+
+  if (!Array.isArray(group.settlements)) {
+    group.settlements = [];
+  }
+
+  // Step 2: Both members must exist in this group.
+  if (
+    !group.members.includes(from) ||
+    !group.members.includes(to)
+  ) {
+    return {
+      ok: false,
+      msg: "Choose a payer and receiver from this group."
+    };
+  }
+
+  // Step 3: A person cannot pay themselves.
+  if (from === to) {
+    return {
+      ok: false,
+      msg: "Payer and receiver must be different people."
+    };
+  }
+
+  // Step 4: Validate the payment amount.
+  amount = Number(amount);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return {
+      ok: false,
+      msg: "Payment amount must be greater than zero."
+    };
+  }
+
+  amount = round2(amount);
+
+  let amountCents = Math.round(amount * 100);
+
+  if (amountCents <= 0) {
+    return {
+      ok: false,
+      msg: "Payment must be at least ₹0.01."
+    };
+  }
+
+  // Step 5: Calculate current balances.
+  let balances = computeBalances(group);
+
+  let fromBalance = balances[from] || 0;
+  let toBalance = balances[to] || 0;
+
+  // Negative balance means the person owes money.
+  if (fromBalance >= -0.004) {
+    return {
+      ok: false,
+      msg: from + " does not currently owe money."
+    };
+  }
+
+  // Positive balance means the person should receive money.
+  if (toBalance <= 0.004) {
+    return {
+      ok: false,
+      msg: to + " is not currently owed money."
+    };
+  }
+
+  // Step 6: Do not allow payments beyond outstanding balances.
+  let amountOwedByPayer =
+    Math.round(Math.abs(fromBalance) * 100);
+
+  let amountOwedToReceiver =
+    Math.round(toBalance * 100);
+
+  if (amountCents > amountOwedByPayer) {
+    return {
+      ok: false,
+      msg:
+        "Payment cannot exceed the amount " +
+        from +
+        " currently owes (" +
+        fmt(Math.abs(fromBalance)) +
+        ")."
+    };
+  }
+
+  if (amountCents > amountOwedToReceiver) {
+    return {
+      ok: false,
+      msg:
+        "Payment cannot exceed the amount " +
+        to +
+        " is owed (" +
+        fmt(toBalance) +
+        ")."
+    };
+  }
+
+  // Step 7: Save the payment only after validation.
+  let settlement = {
     id: Date.now() + Math.floor(Math.random() * 1000),
 
     from: from,
 
     to: to,
 
-    amount: round2(amount),
+    amount: amount,
 
     date: new Date().toLocaleDateString(
       "en-IN",
@@ -619,9 +830,14 @@ function recordSettlement(group, from, to, amount) {
     )
   };
 
-
   group.settlements.push(settlement);
+
+  return {
+    ok: true,
+    settlement: settlement
+  };
 }
+
 
 
 // ================================================================
@@ -773,145 +989,190 @@ function optimizeSettlement(balances) {
 // 1. Equal
 // 2. Exact amount
 // 3. Percentage
+
 function buildShares(mode, amount, participants, inputs) {
 
+  // Step 1: Validate the bill amount.
+  amount = Number(amount);
 
-  // ------------------------------------------------------------
-  // EQUAL SPLIT
-  // ------------------------------------------------------------
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return {
+      ok: false,
+      msg: "Bill amount must be greater than zero."
+    };
+  }
 
+  amount = round2(amount);
+  let amountCents = Math.round(amount * 100);
+
+  if (amountCents <= 0) {
+    return {
+      ok: false,
+      msg: "Bill amount must be at least ₹0.01."
+    };
+  }
+
+  // Step 2: Validate participants.
+  if (!Array.isArray(participants) || participants.length === 0) {
+    return {
+      ok: false,
+      msg: "Select at least one person for the split."
+    };
+  }
+
+  for (let i = 0; i < participants.length; i++) {
+
+    if (
+      typeof participants[i] !== "string" ||
+      !participants[i].trim()
+    ) {
+      return {
+        ok: false,
+        msg: "Every participant must have a valid name."
+      };
+    }
+
+    for (let j = 0; j < i; j++) {
+      if (participants[j] === participants[i]) {
+        return {
+          ok: false,
+          msg: "A participant cannot be included more than once."
+        };
+      }
+    }
+  }
+
+  // Step 3: Check the selected split method.
+  if (
+    mode !== "equal" &&
+    mode !== "exact" &&
+    mode !== "percentage"
+  ) {
+    return {
+      ok: false,
+      msg: "Choose a valid split method."
+    };
+  }
+
+  // Step 4: Equal split.
+  // Distribute every paisa so that the total remains exact.
   if (mode === "equal") {
 
-    let share =
-      round2(amount / participants.length);
+    let baseCents = Math.floor(
+      amountCents / participants.length
+    );
 
-    let shares = {};
+    let remainderCents =
+      amountCents -
+      baseCents * participants.length;
 
+    let shares = Object.create(null);
 
     for (let i = 0; i < participants.length; i++) {
 
-      let member = participants[i];
+      let cents = baseCents;
 
-
-      // Give the last person the remaining amount.
-      // This avoids small decimal errors.
-      if (i === participants.length - 1) {
-
-        shares[member] =
-          round2(
-            amount -
-            share * (participants.length - 1)
-          );
-
-      } else {
-
-        shares[member] = share;
+      if (i < remainderCents) {
+        cents = cents + 1;
       }
+
+      shares[participants[i]] = cents / 100;
     }
 
-
     return {
-
       ok: true,
-
       shares: shares
     };
   }
 
-
-  // ------------------------------------------------------------
-  // EXACT AMOUNT SPLIT
-  // ------------------------------------------------------------
-
+  // Step 5: Exact amount split.
+  // Every share must be a valid, non-negative number.
   if (mode === "exact") {
 
-    let shares = {};
-
-    let sum = 0;
-
+    let shares = Object.create(null);
+    let sumCents = 0;
 
     for (let i = 0; i < participants.length; i++) {
 
       let member = participants[i];
+      let rawValue = inputs ? inputs[member] : undefined;
+      let value = 0;
 
-      let value = parseFloat(inputs[member]);
-
-
-      if (!value) {
-
-        value = 0;
+      if (
+        rawValue !== undefined &&
+        rawValue !== null &&
+        String(rawValue).trim() !== ""
+      ) {
+        value = Number(rawValue);
       }
 
+      if (!Number.isFinite(value) || value < 0) {
+        return {
+          ok: false,
+          msg: "Each exact share must be a valid amount of zero or more."
+        };
+      }
 
-      value = round2(value);
+      let cents = Math.round(round2(value) * 100);
 
-      shares[member] = value;
-
-      sum = round2(sum + value);
+      shares[member] = cents / 100;
+      sumCents = sumCents + cents;
     }
 
-
-    // Exact shares must equal bill amount.
-    if (Math.abs(sum - amount) > 0.01) {
-
+    // Compare whole paisa to avoid floating-point errors.
+    if (sumCents !== amountCents) {
       return {
-
         ok: false,
-
         msg:
           "Exact shares add up to " +
-          fmt(sum) +
+          fmt(sumCents / 100) +
           ", but the bill is " +
           fmt(amount) +
           "."
       };
     }
 
-
     return {
-
       ok: true,
-
       shares: shares
     };
   }
 
-
-  // ------------------------------------------------------------
-  // PERCENTAGE SPLIT
-  // ------------------------------------------------------------
-
+  // Step 6: Percentage split.
+  // Negative percentages are not allowed.
+  let percentages = Object.create(null);
   let percentageSum = 0;
-
 
   for (let i = 0; i < participants.length; i++) {
 
     let member = participants[i];
+    let rawValue = inputs ? inputs[member] : undefined;
+    let percentage = 0;
 
-    let percentage = parseFloat(inputs[member]);
-
-
-    if (!percentage) {
-
-      percentage = 0;
+    if (
+      rawValue !== undefined &&
+      rawValue !== null &&
+      String(rawValue).trim() !== ""
+    ) {
+      percentage = Number(rawValue);
     }
 
+    if (!Number.isFinite(percentage) || percentage < 0) {
+      return {
+        ok: false,
+        msg: "Each percentage must be a valid value of zero or more."
+      };
+    }
 
-    percentageSum =
-      percentageSum + percentage;
+    percentages[member] = percentage;
+    percentageSum = percentageSum + percentage;
   }
-
 
   percentageSum = round2(percentageSum);
 
-
-  // Percentages must total 100.
-  if (Math.abs(percentageSum - 100) > 0.01) {
-
+  if (percentageSum !== 100) {
     return {
-
       ok: false,
-
       msg:
         "Percentages add up to " +
         percentageSum +
@@ -919,54 +1180,55 @@ function buildShares(mode, amount, participants, inputs) {
     };
   }
 
-
-  let shares = {};
-
-  let runningTotal = 0;
-
+  // Step 7: Calculate shares in whole paisa.
+  // Give leftover paisa to the largest fractional shares.
+  let shares = Object.create(null);
+  let fractionalShares = [];
+  let allocatedCents = 0;
 
   for (let i = 0; i < participants.length; i++) {
 
     let member = participants[i];
 
-    let percentage =
-      parseFloat(inputs[member]);
+    let exactCents =
+      amountCents * percentages[member] / 100;
 
+    let wholeCents = Math.floor(exactCents);
 
-    if (!percentage) {
+    shares[member] = wholeCents / 100;
+    allocatedCents = allocatedCents + wholeCents;
 
-      percentage = 0;
-    }
-
-
-    // Give the last person the remaining amount.
-    if (i === participants.length - 1) {
-
-      shares[member] =
-        round2(amount - runningTotal);
-
-    } else {
-
-      shares[member] =
-        round2(
-          (amount * percentage) / 100
-        );
-
-      runningTotal =
-        round2(
-          runningTotal + shares[member]
-        );
-    }
+    fractionalShares.push({
+      name: member,
+      fraction: exactCents - wholeCents,
+      order: i
+    });
   }
 
+  fractionalShares.sort(function (a, b) {
+
+    if (b.fraction !== a.fraction) {
+      return b.fraction - a.fraction;
+    }
+
+    return a.order - b.order;
+  });
+
+  let remainingCents = amountCents - allocatedCents;
+
+  for (let i = 0; i < remainingCents; i++) {
+
+    let member = fractionalShares[i].name;
+
+    shares[member] = round2(shares[member] + 0.01);
+  }
 
   return {
-
     ok: true,
-
     shares: shares
   };
 }
+
 
 
 // ================================================================

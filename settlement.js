@@ -1,3 +1,4 @@
+
 "use strict";
 
 /*
@@ -11,14 +12,7 @@
     3. Payment history
     4. Undo payment
 
-    Important:
-    This file does NOT calculate the balances itself.
-
-    It uses:
-        computeBalances()
-        optimizeSettlement()
-
-    from core.js.
+    Balance calculations are handled by core.js.
 */
 
 // ================================================================
@@ -28,6 +22,7 @@
 const currentUser = requireLogin();
 
 if (currentUser) {
+
   // ============================================================
   // 2. GET ACTIVE GROUP
   // ============================================================
@@ -35,9 +30,8 @@ if (currentUser) {
   const ctx = requireActiveGroup(currentUser);
 
   if (ctx) {
-    // Get groups and active group.
-    let groups = ctx.groups;
 
+    let groups = ctx.groups;
     let group = ctx.group;
 
     // ========================================================
@@ -45,7 +39,6 @@ if (currentUser) {
     // ========================================================
 
     renderNavbar(currentUser, "settlement", group);
-
     showFlashIfAny();
 
     // ========================================================
@@ -57,52 +50,54 @@ if (currentUser) {
     }
 
     // ========================================================
-    // 5. RENDER EVERYTHING
+    // 5. SAFE HTML TEXT
+    // ========================================================
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    // ========================================================
+    // 6. RENDER EVERYTHING
     // ========================================================
 
     function render() {
-      // Calculate current balances.
+
       let balances = computeBalances(group);
 
-      // Calculate recommended transfers.
       let transfers = optimizeSettlement(balances);
 
-      // Display recommended payments.
       renderSlips(transfers);
-
-      // Display member dropdowns.
       renderSelects();
-
-      // Display payment history.
       renderHistory();
     }
 
     // ========================================================
-    // 6. DISPLAY SUGGESTED PAYMENTS
+    // 7. DISPLAY SUGGESTED PAYMENTS
     // ========================================================
 
     function renderSlips(transfers) {
+
       let box = document.getElementById("settlement-list");
 
-      // ====================================================
-      // NO EXPENSES
-      // ====================================================
+      if (!Array.isArray(group.expenses) ||
+        group.expenses.length === 0) {
 
-      if (group.expenses.length === 0) {
         box.innerHTML =
           '<div class="settle-clear">' +
-          "Add expenses to generate a " +
-          "settlement plan." +
+          "Add expenses to generate a settlement plan." +
           "</div>";
 
         return;
       }
 
-      // ====================================================
-      // NO TRANSFERS NEEDED
-      // ====================================================
-
       if (transfers.length === 0) {
+
         box.innerHTML =
           '<div class="settle-clear">' +
           "✓ All settled — nobody owes anything." +
@@ -111,51 +106,50 @@ if (currentUser) {
         return;
       }
 
-      // ====================================================
-      // CREATE PAYMENT CARDS
-      // ====================================================
-
       let rows = "";
 
       for (let i = 0; i < transfers.length; i++) {
+
         let transfer = transfers[i];
 
         let from = transfer.from;
-
         let to = transfer.to;
-
         let amount = transfer.amount;
 
-        rows =
-          rows +
+        rows +=
           '<div class="slip">' +
+
           '<div class="route">' +
-          from +
+          escapeHtml(from) +
           ' <span class="arrow">→</span> ' +
-          to +
+          escapeHtml(to) +
           "</div>" +
+
           '<div class="pay">' +
           fmt(amount) +
           "</div>" +
+
           "<small>" +
           "Transfer " +
           (i + 1) +
           " of " +
           transfers.length +
           "</small>" +
+
           '<button type="button" ' +
           'class="btn-mark-paid" ' +
           'data-from="' +
-          from +
+          escapeHtml(from) +
           '" ' +
           'data-to="' +
-          to +
+          escapeHtml(to) +
           '" ' +
           'data-amount="' +
           amount +
           '">' +
           "Mark as paid" +
           "</button>" +
+
           "</div>";
       }
 
@@ -163,44 +157,48 @@ if (currentUser) {
     }
 
     // ========================================================
-    // 7. DISPLAY MEMBER DROPDOWNS
+    // 8. DISPLAY MEMBER DROPDOWNS
     // ========================================================
 
     function renderSelects() {
-      let options = "";
+
+      let fromSelect = document.getElementById("settle-from");
+      let toSelect = document.getElementById("settle-to");
+
+      fromSelect.innerHTML = "";
+      toSelect.innerHTML = "";
 
       for (let i = 0; i < group.members.length; i++) {
+
         let member = group.members[i];
 
-        options =
-          options + '<option value="' + member + '">' + member + "</option>";
+        let fromOption = document.createElement("option");
+        fromOption.value = member;
+        fromOption.textContent = member;
+
+        let toOption = document.createElement("option");
+        toOption.value = member;
+        toOption.textContent = member;
+
+        fromSelect.appendChild(fromOption);
+        toSelect.appendChild(toOption);
       }
-
-      document.getElementById("settle-from").innerHTML = options;
-
-      document.getElementById("settle-to").innerHTML = options;
     }
 
     // ========================================================
-    // 8. DISPLAY PAYMENT HISTORY
+    // 9. DISPLAY PAYMENT HISTORY
     // ========================================================
 
     function renderHistory() {
+
       let box = document.getElementById("payment-history");
 
-      // Get settlement history.
-      let list = group.settlements;
-
-      // Make sure list exists.
-      if (!list) {
-        list = [];
-      }
-
-      // ====================================================
-      // NO PAYMENT HISTORY
-      // ====================================================
+      let list = Array.isArray(group.settlements)
+        ? group.settlements
+        : [];
 
       if (list.length === 0) {
+
         box.innerHTML =
           '<div class="empty-state">' +
           "<b>No payments recorded yet</b>" +
@@ -210,60 +208,44 @@ if (currentUser) {
         return;
       }
 
-      // ====================================================
-      // COPY PAYMENT LIST
-      // ====================================================
-
-      let sorted = [];
-
-      for (let i = 0; i < list.length; i++) {
-        sorted.push(list[i]);
-      }
+      // Copy the list before sorting.
+      let sorted = list.slice();
 
       // Newest payment first.
       sorted.sort(function (a, b) {
-        return b.id - a.id;
+        return Number(b.id) - Number(a.id);
       });
-
-      // ====================================================
-      // CREATE HISTORY ROWS
-      // ====================================================
 
       let rows = "";
 
       for (let i = 0; i < sorted.length; i++) {
+
         let settlement = sorted[i];
 
-        let id = settlement.id;
-
-        let from = settlement.from;
-
-        let to = settlement.to;
-
-        let amount = settlement.amount;
-
-        let date = settlement.date;
-
-        rows =
-          rows +
+        rows +=
           '<div class="payment-row">' +
+
           '<div class="route">' +
-          from +
+          escapeHtml(settlement.from) +
           ' <span class="arrow">→</span> ' +
-          to +
+          escapeHtml(settlement.to) +
           "</div>" +
+
           '<div class="p-meta">' +
-          date +
+          escapeHtml(settlement.date || "") +
           "</div>" +
+
           '<div class="p-amt">' +
-          fmt(amount) +
+          fmt(settlement.amount) +
           "</div>" +
-          '<button class="btn-danger-sm" ' +
+
+          '<button type="button" class="btn-danger-sm" ' +
           'data-undo-settlement="' +
-          id +
+          escapeHtml(settlement.id) +
           '">' +
           "Undo" +
           "</button>" +
+
           "</div>";
       }
 
@@ -271,169 +253,227 @@ if (currentUser) {
     }
 
     // ========================================================
-    // 9. FIRST DISPLAY
+    // 10. FIRST DISPLAY
     // ========================================================
 
     render();
 
     // ========================================================
-    // 10. MARK SUGGESTED PAYMENT AS PAID
+    // 11. MARK SUGGESTED PAYMENT AS PAID
     // ========================================================
 
     document
       .getElementById("settlement-list")
       .addEventListener("click", function (event) {
-        // Find the clicked button.
+
         let button = event.target.closest(".btn-mark-paid");
 
-        // If it wasn't the button,
-        // do nothing.
         if (!button) {
           return;
         }
 
-        // Get payment information.
         let from = button.dataset.from;
-
         let to = button.dataset.to;
-
         let amount = Number(button.dataset.amount);
 
-        // =================================================
-        // CONFIRM PAYMENT
-        // =================================================
-
         let answer = confirm(
-          "Confirm that " + from + " paid " + to + " " + fmt(amount) + "?",
+          "Confirm that " +
+          from +
+          " paid " +
+          to +
+          " " +
+          fmt(amount) +
+          "?"
         );
 
         if (!answer) {
           return;
         }
 
-        // =================================================
-        // RECORD PAYMENT
-        // =================================================
+        // Validate and record the payment.
+        let result = recordSettlement(
+          group,
+          from,
+          to,
+          amount
+        );
 
-        recordSettlement(group, from, to, amount);
+        // Never report success for a rejected payment.
+        if (!result.ok) {
+          toast(result.msg);
+          return;
+        }
 
-        // Save changes.
         persist();
-
-        // Update everything.
         render();
 
-        // Show message.
-        toast("Marked " + from + " → " + to + " as paid.");
+        toast(
+          "Marked " +
+          from +
+          " → " +
+          to +
+          " as paid."
+        );
       });
 
     // ========================================================
-    // 11. MANUAL PAYMENT FORM
+    // 12. MANUAL PAYMENT FORM
     // ========================================================
 
     document
       .getElementById("settle-form")
       .addEventListener("submit", function (event) {
-        // Stop normal form submission.
+
         event.preventDefault();
 
-        // Get selected payer.
-        let from = document.getElementById("settle-from").value;
+        let from =
+          document.getElementById("settle-from").value;
 
-        // Get selected receiver.
-        let to = document.getElementById("settle-to").value;
+        let to =
+          document.getElementById("settle-to").value;
 
-        // Get payment amount.
-        let amount = parseFloat(document.getElementById("settle-amount").value);
+        let rawAmount =
+          document.getElementById("settle-amount").value;
 
-        amount = round2(amount);
-
-        // =================================================
-        // VALIDATION
-        // =================================================
+        let amount = Number(rawAmount);
 
         if (group.members.length < 2) {
-          showError("settle-error", "Add at least two members first.");
 
-          return;
-        }
-
-        // Payer and receiver cannot be same.
-        if (from === to) {
           showError(
             "settle-error",
-            "Payer and receiver must be " + "different people.",
+            "Add at least two members first."
           );
 
           return;
         }
 
-        // Amount must be positive.
-        if (!amount || amount <= 0) {
-          showError("settle-error", "Amount must be greater than zero.");
+        if (from === to) {
+
+          showError(
+            "settle-error",
+            "Payer and receiver must be different people."
+          );
 
           return;
         }
 
-        // =================================================
-        // SAVE PAYMENT
-        // =================================================
+        if (
+          rawAmount.trim() === "" ||
+          !Number.isFinite(amount) ||
+          amount <= 0
+        ) {
 
-        recordSettlement(group, from, to, amount);
+          showError(
+            "settle-error",
+            "Amount must be greater than zero."
+          );
 
+          return;
+        }
+
+        // Record the payment through core.js.
+        let result = recordSettlement(
+          group,
+          from,
+          to,
+          amount
+        );
+
+        if (!result.ok) {
+
+          showError(
+            "settle-error",
+            result.msg
+          );
+
+          return;
+        }
+
+        // Save only successful payments.
         persist();
 
-        // Clear form.
         event.target.reset();
 
-        // Update screen.
         render();
 
-        // Show message.
-        toast("Recorded: " + from + " paid " + to + " " + fmt(amount) + ".");
+        toast(
+          "Recorded: " +
+          from +
+          " paid " +
+          to +
+          " " +
+          fmt(amount) +
+          "."
+        );
       });
 
     // ========================================================
-    // 12. UNDO PAYMENT
+    // 13. UNDO PAYMENT
     // ========================================================
+
+    // IMPORTANT:
+    // This listener is outside the form-submit handler.
+    // It is registered only once when the page loads.
 
     document
       .getElementById("payment-history")
       .addEventListener("click", function (event) {
-        // Get settlement ID.
-        let id = event.target.dataset.undoSettlement;
 
-        // If not an Undo button.
-        if (!id) {
+        let button = event.target.closest(
+          "[data-undo-settlement]"
+        );
+
+        if (!button) {
           return;
         }
 
-        // Convert ID to number.
-        id = Number(id);
+        let id = Number(button.dataset.undoSettlement);
 
-        // =================================================
-        // CREATE NEW SETTLEMENT ARRAY
-        // =================================================
+        if (!Number.isFinite(id)) {
 
-        let remainingSettlements = [];
+          toast("Invalid payment record.");
+          return;
+        }
 
-        for (let i = 0; i < group.settlements.length; i++) {
-          if (group.settlements[i].id !== id) {
-            remainingSettlements.push(group.settlements[i]);
+        let settlements = Array.isArray(group.settlements)
+          ? group.settlements
+          : [];
+
+        let index = -1;
+
+        // Find the payment to undo.
+        for (let i = 0; i < settlements.length; i++) {
+
+          if (Number(settlements[i].id) === id) {
+            index = i;
+            break;
           }
         }
 
-        // Replace old settlement list.
-        group.settlements = remainingSettlements;
+        if (index === -1) {
 
-        // Save changes.
+          toast("Payment record not found.");
+          return;
+        }
+
+        let answer = confirm(
+          "Undo this payment record? Balances will change."
+        );
+
+        if (!answer) {
+          return;
+        }
+
+        // Remove exactly one payment record.
+        settlements.splice(index, 1);
+
+        group.settlements = settlements;
+
         persist();
-
-        // Update page.
         render();
 
-        // Show message.
         toast("Payment record removed.");
       });
+
   }
 }

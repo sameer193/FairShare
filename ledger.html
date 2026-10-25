@@ -1,31 +1,341 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Ledger — FairShare</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ledger — FairShare</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Ledger-only design. Existing ledger.js hooks and behavior remain unchanged. */
+    .ledger-page {
+      max-width: 1040px;
+      padding-top: 34px;
+    }
+
+    .ledger-hero {
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 22px;
+      padding: 28px 30px;
+      border: 1px solid #d9e7df;
+      border-radius: 19px;
+      background: linear-gradient(120deg, #fff 0%, #f2f9f4 72%, #e5f3e9 100%);
+      box-shadow: 0 10px 28px rgba(18, 45, 32, .05);
+    }
+
+    .ledger-hero::after {
+      content: "";
+      position: absolute;
+      top: -105px;
+      right: -58px;
+      width: 190px;
+      height: 190px;
+      border: 1px solid rgba(27, 94, 74, .13);
+      border-radius: 50%;
+      box-shadow: 0 0 0 22px rgba(27, 94, 74, .035), 0 0 0 46px rgba(27, 94, 74, .025);
+      pointer-events: none;
+    }
+
+    .ledger-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 10px;
+      color: #1b5e4a;
+      font: 600 10px/1.4 var(--mono);
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .ledger-kicker::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #2fa37c;
+      box-shadow: 0 0 0 4px rgba(47, 163, 124, .12);
+    }
+
+    .ledger-hero h1 {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      color: #14271e;
+      font: 800 clamp(30px, 4vw, 40px)/1.1 var(--display);
+      letter-spacing: -.045em;
+    }
+
+    .ledger-hero p {
+      position: relative;
+      z-index: 1;
+      margin: 11px 0 0;
+      color: #65756b;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .ledger-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .ledger-summary-item {
+      padding: 17px 18px;
+      border: 1px solid #e0e8e3;
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 0 4px 14px rgba(18, 24, 20, .035);
+    }
+
+    .ledger-summary-item span {
+      display: block;
+      margin-bottom: 7px;
+      color: #78877e;
+      font: 500 10px/1.4 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .ledger-summary-item strong {
+      display: block;
+      color: #14271e;
+      font: 700 23px/1.2 var(--display);
+      letter-spacing: -.03em;
+      overflow-wrap: anywhere;
+    }
+
+    .ledger-list-card {
+      padding: 8px 24px;
+      border: 1px solid #e0e8e3;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 5px 18px rgba(18, 24, 20, .035);
+    }
+
+    .ledger-page .ledger {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .ledger-page .expense {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      grid-template-areas: "desc amount delete" "meta meta meta";
+      align-items: center;
+      gap: 10px 16px;
+      min-width: 0;
+      padding: 19px 2px;
+      border-bottom: 1px solid #e8eee9;
+    }
+
+    .ledger-page .expense:last-child {
+      border-bottom: 0;
+    }
+
+    .ledger-page .expense .desc {
+      grid-area: desc;
+      min-width: 0;
+      color: #1b2d22;
+      font: 700 16px/1.4 var(--display);
+      overflow-wrap: anywhere;
+    }
+
+    .ledger-page .expense .amt {
+      grid-area: amount;
+      color: #1b5e4a;
+      font: 600 15px/1.4 var(--mono);
+      white-space: nowrap;
+    }
+
+    .ledger-page .expense .del {
+      grid-area: delete;
+      min-height: 34px;
+      padding: 7px 11px;
+      border: 1px solid #f0d8d0;
+      border-radius: 9px;
+      color: #b5472d;
+      background: #fffaf8;
+      font: 600 11px var(--sans);
+      cursor: pointer;
+      transition: background .18s ease, border-color .18s ease;
+    }
+
+    .ledger-page .expense .del:hover {
+      border-color: #e6b9aa;
+      background: #fff0eb;
+    }
+
+    .ledger-page .expense .meta {
+      grid-area: meta;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px 9px;
+      color: #7a877f;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .ledger-page .expense .mode {
+      padding: 3px 7px;
+      border: 1px solid #dce9e0;
+      border-radius: 999px;
+      color: #397057;
+      background: #f1f8f3;
+      font: 500 9px var(--mono);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .ledger-page .expense .who {
+      color: #65756b;
+    }
+
+    .ledger-page .empty-state {
+      padding: 48px 18px;
+      color: #77847c;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .ledger-page .empty-state b {
+      display: block;
+      margin-bottom: 7px;
+      color: #21352a;
+      font: 700 18px var(--display);
+    }
+
+    @media (max-width: 620px) {
+      .ledger-page {
+        padding: 20px 14px 45px;
+      }
+
+      .ledger-hero {
+        padding: 23px 19px;
+        border-radius: 16px;
+      }
+
+      .ledger-summary {
+        grid-template-columns: 1fr;
+        gap: 9px;
+      }
+
+      .ledger-summary-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 15px;
+      }
+
+      .ledger-summary-item span {
+        margin: 0;
+      }
+
+      .ledger-summary-item strong {
+        font-size: 20px;
+        text-align: right;
+      }
+
+      .ledger-list-card {
+        padding: 4px 15px;
+        border-radius: 15px;
+      }
+
+      .ledger-page .expense {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "desc amount" "meta meta" "delete delete";
+        gap: 8px 10px;
+        padding: 17px 0;
+      }
+
+      .ledger-page .expense .amt {
+        font-size: 13px;
+      }
+
+      .ledger-page .expense .del {
+        justify-self: start;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ledger-page .expense .del {
+        transition: none;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="navbar"></div>
+  <div id="navbar"></div>
 
-<main class="page">
-  <div class="page-head">
-    <h1>Expense ledger</h1>
-    <p>Every bill logged for this group, most recent first.</p>
-  </div>
+  <main class="page ledger-page">
+    <section class="ledger-hero">
+      <span class="ledger-kicker">GROUP EXPENSE HISTORY</span>
+      <h1>Expense ledger</h1>
+      <p>Every bill logged for this group, with the most recent expenses first.</p>
+    </section>
 
-  <section class="card">
-    <div class="ledger" id="expense-list"></div>
-  </section>
-</main>
+    <div class="ledger-summary" aria-label="Ledger summary">
+      <div class="ledger-summary-item">
+        <span>Recorded bills</span>
+        <strong id="ledger-count">—</strong>
+      </div>
+      <div class="ledger-summary-item">
+        <span>Total recorded</span>
+        <strong id="ledger-total">—</strong>
+      </div>
+      <div class="ledger-summary-item">
+        <span>Newest entry</span>
+        <strong id="ledger-newest">—</strong>
+      </div>
+    </div>
 
-<div class="toast" id="toast"></div>
+    <section class="card ledger-list-card">
+      <div class="ledger" id="expense-list"></div>
+    </section>
+  </main>
 
-<script src="core.js"></script>
-<script src="ledger.js"></script>
+  <div class="toast" id="toast"></div>
+
+  <script src="core.js"></script>
+  <script src="ledger.js"></script>
+  <script>
+    /* Add a small summary using the same existing browser-stored group data.
+       This does not change ledger.js or the way expenses are saved. */
+    (function () {
+      try {
+        if (typeof requireLogin !== "function" || typeof requireActiveGroup !== "function") return;
+        var user = requireLogin();
+        if (!user) return;
+        var context = requireActiveGroup(user);
+        if (!context || !context.group) return;
+        var expenses = context.group.expenses || [];
+        var total = 0;
+        for (var i = 0; i < expenses.length; i++) total += Number(expenses[i].amount) || 0;
+        var count = document.getElementById("ledger-count");
+        var totalNode = document.getElementById("ledger-total");
+        var newest = document.getElementById("ledger-newest");
+        if (count) count.textContent = String(expenses.length);
+        if (totalNode) totalNode.textContent = typeof fmt === "function" ? fmt(total) : "₹" + total.toFixed(2);
+        if (newest) newest.textContent = expenses.length ? (expenses.reduce(function (latest, item) {
+          return Number(item.id) > Number(latest.id) ? item : latest;
+        }, expenses[0]).date || "Recorded") : "—";
+      } catch (error) {
+        /* The ledger itself should still load if summary data is unavailable. */
+      }
+    })();
+  </script>
 </body>
+
 </html>
