@@ -1386,7 +1386,7 @@ function renderNavbar(user, currentPage, activeGroup) {
   box.innerHTML = html;
 }
 
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = "https://fairshare-backend-orkq.onrender.com/api";
 
 // Send a request to the FairShare backend.
 async function apiRequest(endpoint, options = {}) {
