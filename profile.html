@@ -1,35 +1,487 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Profile — FairShare</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile — FairShare</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root {
+      --profile-green: #12664f;
+      --profile-green-dark: #0b3f32;
+      --profile-green-light: #e5f5ed;
+      --profile-ink: #17342b;
+      --profile-muted: #718078;
+      --profile-border: #e3ece7;
+      --profile-surface: #ffffff;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 12% 18%, rgba(37, 167, 123, .08), transparent 28%),
+        #f4f8f5;
+      color: var(--profile-ink);
+    }
+
+    .page {
+      width: min(100% - 40px, 1040px);
+      margin: 0 auto;
+      padding: 42px 0 64px;
+    }
+
+    .profile-hero {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      color: var(--profile-green);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #29a879;
+      box-shadow: 0 0 0 4px rgba(41, 168, 121, .12);
+    }
+
+    .page-head h1 {
+      margin: 0;
+      font-family: "Archivo", sans-serif;
+      font-size: clamp(30px, 4vw, 42px);
+      letter-spacing: -1.4px;
+      line-height: 1.12;
+      color: var(--profile-ink);
+    }
+
+    .page-head>p {
+      margin: 10px 0 0;
+      color: var(--profile-muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .profile-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(260px, .75fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--profile-surface);
+      border: 1px solid var(--profile-border);
+      border-radius: 20px;
+      box-shadow: 0 12px 34px rgba(19, 57, 43, .055);
+    }
+
+    .profile-card {
+      padding: 28px;
+      overflow: hidden;
+    }
+
+    .profile-card-top {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--profile-border);
+    }
+
+    .profile-avatar {
+      width: 76px;
+      height: 76px;
+      flex: 0 0 76px;
+      display: grid;
+      place-items: center;
+      border: 5px solid #e7f6ee;
+      border-radius: 50%;
+      color: #fff;
+      font-family: "Archivo", sans-serif;
+      font-size: 30px;
+      font-weight: 800;
+      box-shadow: 0 6px 18px rgba(18, 102, 79, .15);
+    }
+
+    .profile-identity {
+      min-width: 0;
+    }
+
+    .profile-identity h2 {
+      margin: 0;
+      overflow-wrap: anywhere;
+      color: var(--profile-ink);
+      font-family: "Archivo", sans-serif;
+      font-size: clamp(19px, 2.5vw, 24px);
+      letter-spacing: -.5px;
+    }
+
+    .profile-identity p {
+      margin: 6px 0 0;
+      color: var(--profile-muted);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .profile-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--profile-green-light);
+      color: var(--profile-green);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .profile-status::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #20a16f;
+    }
+
+    .details-list {
+      display: grid;
+      gap: 0;
+      margin: 8px 0 0;
+    }
+
+    .detail-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid #edf2ef;
+    }
+
+    .detail-row:last-child {
+      border-bottom: 0;
+    }
+
+    .detail-label {
+      color: var(--profile-muted);
+      font-size: 12px;
+    }
+
+    .detail-value {
+      max-width: 65%;
+      color: var(--profile-ink);
+      font-size: 13px;
+      font-weight: 700;
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+
+    .profile-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .profile-actions button,
+    .profile-actions a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+
+    .profile-actions .primary-action {
+      border: 1px solid var(--profile-green);
+      background: var(--profile-green);
+      color: white;
+      box-shadow: 0 6px 14px rgba(18, 102, 79, .13);
+    }
+
+    .profile-actions .primary-action:hover {
+      background: var(--profile-green-dark);
+      transform: translateY(-1px);
+    }
+
+    .profile-actions .logout-action {
+      border: 1px solid #f0d8cc;
+      background: #fffaf7;
+      color: #a64b27;
+    }
+
+    .profile-actions .logout-action:hover {
+      background: #fff0e8;
+      transform: translateY(-1px);
+    }
+
+    .side-column {
+      display: grid;
+      gap: 18px;
+    }
+
+    .side-card {
+      padding: 22px;
+    }
+
+    .side-card h3 {
+      margin: 0 0 8px;
+      color: var(--profile-ink);
+      font-family: "Archivo", sans-serif;
+      font-size: 17px;
+      letter-spacing: -.3px;
+    }
+
+    .side-card>p {
+      margin: 0;
+      color: var(--profile-muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .privacy-note {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-top: 18px;
+      padding: 13px;
+      border-radius: 12px;
+      background: #f4faf6;
+      color: #42685a;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .privacy-icon {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
+      border-radius: 9px;
+      background: #e0f3e8;
+      color: var(--profile-green);
+      font-weight: 800;
+    }
+
+    .side-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      color: var(--profile-green);
+      font-size: 13px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .side-link:hover {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .toast {
+      z-index: 1000;
+    }
+
+    button:focus-visible,
+    a:focus-visible {
+      outline: 3px solid #65d5a7;
+      outline-offset: 3px;
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(100% - 28px, 560px);
+        padding: 28px 0 42px;
+      }
+
+      .profile-hero {
+        display: block;
+        margin-bottom: 20px;
+      }
+
+      .profile-layout {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .profile-card {
+        padding: 22px;
+      }
+
+      .profile-card-top {
+        gap: 14px;
+      }
+
+      .profile-avatar {
+        width: 64px;
+        height: 64px;
+        flex-basis: 64px;
+        font-size: 25px;
+      }
+
+      .side-card {
+        padding: 20px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .page {
+        width: calc(100% - 20px);
+        padding-top: 22px;
+      }
+
+      .profile-card {
+        padding: 17px;
+        border-radius: 16px;
+      }
+
+      .profile-card-top {
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .profile-avatar {
+        width: 54px;
+        height: 54px;
+        flex-basis: 54px;
+        border-width: 3px;
+        font-size: 22px;
+      }
+
+      .detail-row {
+        gap: 10px;
+      }
+
+      .profile-actions {
+        flex-direction: column;
+      }
+
+      .profile-actions button,
+      .profile-actions a {
+        width: 100%;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      .profile-actions button,
+      .profile-actions a {
+        transition: none;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="navbar"></div>
+  <div id="navbar"></div>
 
-<main class="page">
-  <div class="page-head">
-    <h1>Your profile</h1>
-    <p>Account details for this browser — visible only to you.</p>
-  </div>
+  <main class="page">
+    <header class="profile-hero">
+      <div class="page-head">
+        <span class="eyebrow">YOUR FAIRSHARE ACCOUNT</span>
+        <h1>Your profile</h1>
+        <p>Manage your account details and keep your shared-expense life in view.</p>
+      </div>
+    </header>
 
-  <section class="card profile-card">
-    <div class="profile-avatar" id="profile-avatar">?</div>
-    <h2 id="profile-name">—</h2>
-    <p class="hint-line" id="profile-email">—</p>
-    <p class="hint-line" id="profile-since"></p>
-    <button class="btn-danger-sm" id="btn-logout">Log out</button>
-  </section>
-</main>
+    <div class="profile-layout">
+      <section class="card profile-card" aria-labelledby="profile-name">
+        <div class="profile-card-top">
+          <div class="profile-avatar" id="profile-avatar" aria-hidden="true">?</div>
+          <div class="profile-identity">
+            <h2 id="profile-name">—</h2>
+            <p id="profile-email">—</p>
+            <span class="profile-status">Account active in this browser</span>
+          </div>
+        </div>
 
-<div class="toast" id="toast"></div>
+        <div class="details-list">
+          <div class="detail-row">
+            <span class="detail-label">Email address</span>
+            <span class="detail-value" id="profile-email-detail">—</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Member since</span>
+            <span class="detail-value" id="profile-since">—</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Account storage</span>
+            <span class="detail-value">This browser</span>
+          </div>
+        </div>
 
-<script src="core.js"></script>
-<script src="profile.js"></script>
+        <div class="profile-actions">
+          <a class="primary-action" href="dashboard.html">Go to dashboard <span aria-hidden="true">→</span></a>
+          <button class="logout-action" id="btn-logout" type="button">Log out</button>
+        </div>
+      </section>
+
+      <aside class="side-column">
+        <section class="card side-card">
+          <h3>Good to have you here.</h3>
+          <p>FairShare helps your group track shared expenses, understand balances, and simplify who owes whom.</p>
+          <a class="side-link" href="dashboard.html">View your dashboard <span aria-hidden="true">→</span></a>
+        </section>
+
+        <section class="card side-card">
+          <h3>Your details stay local</h3>
+          <p>This demo stores account details in your browser. They are not synced to an online account or server.</p>
+          <div class="privacy-note">
+            <span class="privacy-icon" aria-hidden="true">✓</span>
+            <span>Use this page to review the account currently signed in on this browser.</span>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="core.js"></script>
+  <script src="profile.js"></script>
+  <script>
+    // Mirror the email into the structured details row without changing profile.js.
+    document.addEventListener("DOMContentLoaded", function () {
+      const email = document.getElementById("profile-email");
+      const emailDetail = document.getElementById("profile-email-detail");
+      if (email && emailDetail) {
+        const observer = new MutationObserver(function () {
+          emailDetail.textContent = email.textContent;
+        });
+        observer.observe(email, { childList: true, characterData: true, subtree: true });
+        emailDetail.textContent = email.textContent;
+      }
+    });
+  </script>
 </body>
+
 </html>
