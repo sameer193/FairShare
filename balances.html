@@ -1,31 +1,318 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Balances — FairShare</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Balances — FairShare</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Balances-page-only styling; balances.js and its element IDs stay unchanged. */
+    .balances-page {
+      max-width: 1040px;
+      padding-top: 34px;
+    }
+
+    .balances-hero {
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 22px;
+      padding: 28px 30px;
+      border: 1px solid #d9e7df;
+      border-radius: 19px;
+      background: linear-gradient(120deg, #fff 0%, #f2f9f4 72%, #e5f3e9 100%);
+      box-shadow: 0 10px 28px rgba(18, 45, 32, .05);
+    }
+
+    .balances-hero::after {
+      content: "";
+      position: absolute;
+      top: -105px;
+      right: -58px;
+      width: 190px;
+      height: 190px;
+      border: 1px solid rgba(27, 94, 74, .13);
+      border-radius: 50%;
+      box-shadow: 0 0 0 22px rgba(27, 94, 74, .035), 0 0 0 46px rgba(27, 94, 74, .025);
+      pointer-events: none;
+    }
+
+    .balances-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 10px;
+      color: #1b5e4a;
+      font: 600 10px/1.4 var(--mono);
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .balances-kicker::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #2fa37c;
+      box-shadow: 0 0 0 4px rgba(47, 163, 124, .12);
+    }
+
+    .balances-hero h1 {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      color: #14271e;
+      font: 800 clamp(30px, 4vw, 40px)/1.1 var(--display);
+      letter-spacing: -.045em;
+    }
+
+    .balances-hero p {
+      position: relative;
+      z-index: 1;
+      max-width: 700px;
+      margin: 11px 0 0;
+      color: #65756b;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .balances-key {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      margin: 0 0 18px;
+      padding: 14px 17px;
+      border: 1px solid #e0e8e3;
+      border-radius: 13px;
+      background: rgba(255, 255, 255, .78);
+    }
+
+    .balances-key-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #627269;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .balances-key-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 3px;
+    }
+
+    .balances-key-dot.positive {
+      background: #2fa37c;
+    }
+
+    .balances-key-dot.negative {
+      background: #c8641e;
+    }
+
+    .balances-key-dot.zero {
+      background: #b9c5bd;
+    }
+
+    .balances-card {
+      padding: 22px 24px;
+      border: 1px solid #e0e8e3;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 5px 18px rgba(18, 24, 20, .035);
+    }
+
+    .balances-card-heading {
+      margin: 0 0 18px;
+      color: #1b2d22;
+      font: 700 16px/1.4 var(--display);
+    }
+
+    .balances-page .balances {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .balances-page .bal-row {
+      display: grid;
+      grid-template-columns: minmax(100px, 145px) minmax(120px, 1fr) minmax(110px, 135px);
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+      padding: 5px 0;
+    }
+
+    .balances-page .bal-row .name {
+      min-width: 0;
+      color: #20352a;
+      font: 600 13px/1.5 var(--sans);
+      overflow-wrap: anywhere;
+    }
+
+    .balances-page .bal-track {
+      position: relative;
+      min-width: 0;
+      height: 18px;
+      overflow: hidden;
+      border-radius: 7px;
+      background: #f0f4f1;
+    }
+
+    .balances-page .bal-track::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 1px;
+      background: #d5dfd8;
+    }
+
+    .balances-page .bal-bar {
+      position: absolute;
+      top: 2px;
+      bottom: 2px;
+      z-index: 1;
+      border-radius: 5px;
+    }
+
+    .balances-page .bal-bar.pos {
+      left: 50%;
+      background: #2fa37c;
+    }
+
+    .balances-page .bal-bar.neg {
+      background: #c8641e;
+    }
+
+    .balances-page .bal-amt {
+      text-align: right;
+      white-space: nowrap;
+      font: 600 12px/1.5 var(--mono);
+    }
+
+    .balances-page .bal-amt.pos {
+      color: #1b8060;
+    }
+
+    .balances-page .bal-amt.neg {
+      color: #bd5a19;
+    }
+
+    .balances-page .bal-amt.zero {
+      color: #78877e;
+    }
+
+    .balances-page .empty-state {
+      padding: 44px 18px;
+      color: #77847c;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .balances-page .empty-state b {
+      display: block;
+      margin-bottom: 7px;
+      color: #21352a;
+      font: 700 18px var(--display);
+    }
+
+    .balances-note {
+      margin-top: 16px;
+      padding: 13px 15px;
+      border: 1px solid #dcebe1;
+      border-radius: 12px;
+      color: #52705e;
+      background: #f1f8f3;
+      font-size: 11px;
+      line-height: 1.65;
+    }
+
+    @media (max-width: 680px) {
+      .balances-page {
+        padding: 20px 14px 45px;
+      }
+
+      .balances-hero {
+        padding: 23px 19px;
+        border-radius: 16px;
+      }
+
+      .balances-card {
+        padding: 19px 15px;
+        border-radius: 15px;
+      }
+
+      .balances-page .balances {
+        gap: 18px;
+      }
+
+      .balances-page .bal-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "name amount" "track track";
+        gap: 8px 10px;
+        padding: 0;
+      }
+
+      .balances-page .bal-row .name {
+        grid-area: name;
+      }
+
+      .balances-page .bal-row .bal-track {
+        grid-area: track;
+        height: 16px;
+      }
+
+      .balances-page .bal-row .bal-amt {
+        grid-area: amount;
+        font-size: 11px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<div id="navbar"></div>
+  <div id="navbar"></div>
 
-<main class="page">
-  <div class="page-head">
-    <h1>Balances</h1>
-    <p>Green means the group owes them; amber means they owe the group. Both expenses and any confirmed payments are already factored in.</p>
-  </div>
+  <main class="page balances-page">
+    <section class="balances-hero">
+      <span class="balances-kicker">GROUP FINANCIAL OVERVIEW</span>
+      <h1>Balances</h1>
+      <p>See where everyone stands. Positive balances mean a member should receive money; negative balances mean they
+        owe money to the group.</p>
+    </section>
 
-  <section class="card">
-    <div class="balances" id="balance-list"></div>
-  </section>
-</main>
+    <div class="balances-key" aria-label="Balance legend">
+      <span class="balances-key-item"><span class="balances-key-dot positive"></span>Should receive</span>
+      <span class="balances-key-item"><span class="balances-key-dot negative"></span>Needs to pay</span>
+      <span class="balances-key-item"><span class="balances-key-dot zero"></span>Settled</span>
+    </div>
 
-<div class="toast" id="toast"></div>
+    <section class="card balances-card">
+      <h2 class="balances-card-heading">Member balances</h2>
+      <div class="balances" id="balance-list"></div>
+      <div class="balances-note">These balances are calculated from the group's recorded expenses and confirmed
+        payments. A balance shows the net amount for each member, not a separate bill.</div>
+    </section>
+  </main>
 
-<script src="core.js"></script>
-<script src="balances.js"></script>
+  <div class="toast" id="toast"></div>
+
+  <script src="core.js"></script>
+  <script src="balances.js"></script>
 </body>
+
 </html>
