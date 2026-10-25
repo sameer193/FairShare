@@ -85,14 +85,14 @@ if (currentUser) {
 
 
     // Show greeting.
-    let firstName =
-      currentUser.username.split(" ")[0];
+    const greeting = document.getElementById("greeting");
 
+    const displayName = (currentUser.name || currentUser.username || "there")
+      .replace(/[_\d]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
 
-    document.getElementById("greeting").textContent =
-      "Hi " +
-      firstName +
-      " — here's where your money stands.";
+    greeting.textContent = `Hi ${displayName || "there"} — here's where your money stands.`;
 
 
     // ========================================================
