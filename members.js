@@ -393,132 +393,127 @@ if (currentUser) {
       );
 
 
+
     // ========================================================
     // 9. REMOVE MEMBER
     // ========================================================
 
     document
       .getElementById("member-list")
-      .addEventListener(
-        "click",
-        function (event) {
+      .addEventListener("click", function (event) {
 
+        // Find the remove button that was clicked.
+        let button = event.target.closest("[data-remove]");
 
-          // Get the name of the member
-          // we want to remove.
-          let name =
-            event.target.dataset.remove;
-
-
-          // If clicked somewhere else,
-          // do nothing.
-          if (!name) {
-
-            return;
-          }
-
-
-          // =================================================
-          // CHECK WHETHER MEMBER IS USED IN EXPENSE
-          // =================================================
-
-          let involved = false;
-
-
-          for (
-            let i = 0;
-            i < group.expenses.length;
-            i++
-          ) {
-
-            let expense =
-              group.expenses[i];
-
-
-            // Check whether this person paid.
-            if (expense.payer === name) {
-
-              involved = true;
-
-              break;
-            }
-
-
-            // Check whether this person
-            // has a share in the expense.
-            if (
-              expense.shares &&
-              expense.shares[name] !== undefined
-            ) {
-
-              involved = true;
-
-              break;
-            }
-          }
-
-
-          // =================================================
-          // DON'T REMOVE MEMBER IF INVOLVED IN EXPENSE
-          // =================================================
-
-          if (involved) {
-
-            showError(
-              "member-error",
-              name +
-              " appears in existing expenses " +
-              "and can't be removed. " +
-              "Delete those expenses first."
-            );
-
-            return;
-          }
-
-
-          // =================================================
-          // REMOVE MEMBER
-          // =================================================
-
-          let remainingMembers = [];
-
-
-          for (
-            let i = 0;
-            i < group.members.length;
-            i++
-          ) {
-
-            if (
-              group.members[i] !== name
-            ) {
-
-              remainingMembers.push(
-                group.members[i]
-              );
-            }
-          }
-
-
-          // Replace old member list.
-          group.members =
-            remainingMembers;
-
-
-          // Save changes.
-          persist();
-
-
-          // Update screen.
-          renderMembers();
-
-
-          // Show message.
-          toast(
-            name +
-            " removed."
-          );
+        // If the click was not on a remove button, stop.
+        if (!button) {
+          return;
         }
-      );
+
+        let name = button.dataset.remove;
+
+        // ====================================================
+        // CHECK WHETHER MEMBER IS USED IN EXPENSES
+        // ====================================================
+
+        let involvedInExpense = false;
+
+        let expenses = Array.isArray(group.expenses)
+          ? group.expenses
+          : [];
+
+        for (let i = 0; i < expenses.length; i++) {
+
+          let expense = expenses[i];
+
+          // Check whether this member paid the expense.
+          if (expense.payer === name) {
+            involvedInExpense = true;
+            break;
+          }
+
+          // Check whether this member has a share.
+          if (
+            expense.shares &&
+            Object.prototype.hasOwnProperty.call(
+              expense.shares,
+              name
+            )
+          ) {
+            involvedInExpense = true;
+            break;
+          }
+        }
+
+        // ====================================================
+        // CHECK WHETHER MEMBER IS USED IN SETTLEMENTS
+        // ====================================================
+
+        let involvedInSettlement = false;
+
+        let settlements = Array.isArray(group.settlements)
+          ? group.settlements
+          : [];
+
+        for (let i = 0; i < settlements.length; i++) {
+
+          let settlement = settlements[i];
+
+          // Check whether this member paid someone.
+          if (settlement.from === name) {
+            involvedInSettlement = true;
+            break;
+          }
+
+          // Check whether this member received money.
+          if (settlement.to === name) {
+            involvedInSettlement = true;
+            break;
+          }
+        }
+
+        // ====================================================
+        // PREVENT DELETION IF HISTORY EXISTS
+        // ====================================================
+
+        if (involvedInExpense || involvedInSettlement) {
+
+          showError(
+            "member-error",
+            name +
+            " has existing financial history and " +
+            "cannot be removed. Resolve the related " +
+            "expenses and payments first."
+          );
+
+          return;
+        }
+
+        // ====================================================
+        // REMOVE MEMBER
+        // ====================================================
+
+        let remainingMembers = [];
+
+        for (let i = 0; i < group.members.length; i++) {
+
+          if (group.members[i] !== name) {
+            remainingMembers.push(group.members[i]);
+          }
+        }
+
+        // Replace the member list.
+        group.members = remainingMembers;
+
+        // Save changes.
+        persist();
+
+        // Refresh the member list.
+        renderMembers();
+
+        // Show confirmation.
+        toast(name + " removed.");
+      });
+
   }
 }
