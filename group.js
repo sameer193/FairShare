@@ -1,277 +1,155 @@
+
 "use strict";
 
-/*
-    group.js
-
-    This file controls the main page of one group.
-
-    It shows:
-    1. Group name
-    2. Number of members
-    3. Number of expenses
-    4. Total money spent
-    5. Average spending per member
-    6. Number of settlement transfers
-
-    It also allows the user to delete the group.
-*/
-
-
-// ================================================================
+// ============================================================
 // 1. CHECK LOGIN
-// ================================================================
+// ============================================================
 
 const currentUser = requireLogin();
 
-
-// Continue only if the user is logged in.
 if (currentUser) {
 
+  // ==========================================================
+  // 2. SHOW NAVBAR
+  // ==========================================================
 
-  // ============================================================
-  // 2. GET ACTIVE GROUP
-  // ============================================================
+  renderNavbar(currentUser, "group", null);
+  showFlashIfAny();
 
-  const ctx = requireActiveGroup(currentUser);
+  // ==========================================================
+  // 3. LOAD ACTIVE GROUP FROM BACKEND
+  // ==========================================================
 
+  async function loadGroup() {
 
-  // Continue only if an active group exists.
-  if (ctx) {
+    const groupId = sessionStorage.getItem("FairShare-active-group");
 
-
-    // Get the group from ctx.
-    let group = ctx.group;
-
-
-    // ========================================================
-    // 3. DISPLAY NAVBAR
-    // ========================================================
-
-    renderNavbar(
-      currentUser,
-      "group",
-      group
-    );
-
-    showFlashIfAny();
-
-
-    // ========================================================
-    // 4. DISPLAY GROUP NAME
-    // ========================================================
-
-    document.getElementById("group-title").textContent =
-      group.name;
-
-
-    // Number of members.
-    let memberText =
-      group.members.length + " member";
-
-
-    if (group.members.length !== 1) {
-
-      memberText = memberText + "s";
+    if (!groupId) {
+      window.location.href = "dashboard.html";
+      return;
     }
 
+    try {
 
-    // Number of expenses.
-    let expenseText =
-      group.expenses.length + " expense";
+      const result = await apiRequest("/groups/" + groupId);
 
-
-    if (group.expenses.length !== 1) {
-
-      expenseText = expenseText + "s";
-    }
-
-
-    // Show member and expense count.
-    document.getElementById("group-sub").textContent =
-      memberText +
-      " · " +
-      expenseText;
-
-
-    // ========================================================
-    // 5. CALCULATE TOTAL SPENDING
-    // ========================================================
-
-    let total = 0;
-
-
-    for (
-      let i = 0;
-      i < group.expenses.length;
-      i++
-    ) {
-
-      total =
-        total + group.expenses[i].amount;
-    }
-
-
-    // ========================================================
-    // 6. CALCULATE BALANCES
-    // ========================================================
-
-    let balances =
-      computeBalances(group);
-
-
-    // ========================================================
-    // 7. CALCULATE SETTLEMENT TRANSFERS
-    // ========================================================
-
-    let transfers =
-      optimizeSettlement(balances);
-
-
-    // ========================================================
-    // 8. CALCULATE AVERAGE PER MEMBER
-    // ========================================================
-
-    let perHead = 0;
-
-
-    if (group.members.length > 0) {
-
-      perHead =
-        total / group.members.length;
-    }
-
-
-    // ========================================================
-    // 9. CREATE STATISTICS
-    // ========================================================
-
-    let stats = [
-
-      {
-        label: "Total spent",
-        value: fmt(total)
-      },
-
-      {
-        label: "Members",
-        value: group.members.length
-      },
-
-      {
-        label: "Avg per member",
-        value: fmt(perHead)
-      },
-
-      {
-        label: "Settle-up transfers",
-        value: transfers.length
+      if (!result.success || !result.data) {
+        throw new Error("Group details were not returned.");
       }
-    ];
 
+      const group = result.data;
 
-    // ========================================================
-    // 10. DISPLAY STATISTICS
-    // ========================================================
+      // ======================================================
+      // 4. DISPLAY GROUP DETAILS
+      // ======================================================
 
-    let cells = "";
+      document.getElementById("group-title").textContent =
+        group.name;
 
+      const members = group.members || [];
+      const expenses = group.expenses || [];
 
-    for (let i = 0; i < stats.length; i++) {
+      const memberText =
+        members.length + (members.length === 1 ? " member" : " members");
 
-      let stat = stats[i];
+      const expenseText =
+        expenses.length + (expenses.length === 1 ? " expense" : " expenses");
 
+      document.getElementById("group-sub").textContent =
+        memberText + " · " + expenseText;
 
-      cells =
-        cells +
+      // ======================================================
+      // 5. CALCULATE STATISTICS
+      // ======================================================
 
-        '<div class="stat">' +
+      let total = 0;
 
-        "<b>" +
-        stat.value +
-        "</b>" +
+      for (let i = 0; i < expenses.length; i++) {
+        total += expenses[i].amount;
+      }
 
-        "<small>" +
-        stat.label +
-        "</small>" +
+      const localFormatGroup = {
+        ...group,
+        expenses: expenses,
+        settlements: group.settlements || []
+      };
 
-        "</div>";
-    }
+      const balances = computeBalances(localFormatGroup);
+      const transfers = optimizeSettlement(balances);
 
+      let perHead = 0;
 
-    document.getElementById("stat-grid").innerHTML =
-      cells;
+      if (members.length > 0) {
+        perHead = total / members.length;
+      }
 
+      const stats = [
+        { label: "Total spent", value: fmt(total) },
+        { label: "Members", value: members.length },
+        { label: "Avg per member", value: fmt(perHead) },
+        { label: "Settle-up transfers", value: transfers.length }
+      ];
 
-    // ========================================================
-    // 11. DELETE GROUP
-    // ========================================================
+      let cells = "";
 
-    document
-      .getElementById("btn-del-group")
-      .addEventListener("click", function () {
+      for (let i = 0; i < stats.length; i++) {
 
+        cells +=
+          '<div class="stat">' +
+          "<b>" + stats[i].value + "</b>" +
+          "<small>" + stats[i].label + "</small>" +
+          "</div>";
+      }
 
-        // Ask the user for confirmation.
-        let answer = confirm(
-          'Delete "' +
-          group.name +
-          '" and everything in it? ' +
-          "This can't be undone."
-        );
+      document.getElementById("stat-grid").innerHTML = cells;
 
+      // ======================================================
+      // 6. DELETE GROUP THROUGH BACKEND
+      // ======================================================
 
-        // If user selects Cancel.
-        if (!answer) {
+      document
+        .getElementById("btn-del-group")
+        .addEventListener("click", async function () {
 
-          return;
-        }
+          const answer = confirm(
+            'Delete "' + group.name + '"? This cannot be undone.'
+          );
 
-
-        // Get all groups of current user.
-        let groups =
-          getUserGroups(currentUser.id);
-
-
-        // Create a new array without
-        // the current group.
-        let remainingGroups = [];
-
-
-        for (
-          let i = 0;
-          i < groups.length;
-          i++
-        ) {
-
-          if (groups[i].id !== group.id) {
-
-            remainingGroups.push(groups[i]);
+          if (!answer) {
+            return;
           }
-        }
 
+          const button = document.getElementById("btn-del-group");
+          button.disabled = true;
 
-        // Save the updated groups.
-        saveUserGroups(
-          currentUser.id,
-          remainingGroups
-        );
+          try {
 
+            await apiRequest("/groups/" + group._id, {
+              method: "DELETE"
+            });
 
-        // Remove active group.
-        clearActiveGroupId();
+            clearActiveGroupId();
 
+            setFlash('Group "' + group.name + '" deleted.');
 
-        // Show message on dashboard.
-        setFlash(
-          'Group "' +
-          group.name +
-          '" deleted.'
-        );
+            window.location.href = "dashboard.html";
 
+          } catch (error) {
 
-        // Go back to dashboard.
-        window.location.href =
-          "dashboard.html";
-      });
+            alert("Could not delete group: " + error.message);
+            button.disabled = false;
+          }
+        });
+
+    } catch (error) {
+
+      console.error("Loading group failed:", error);
+
+      alert("Could not load group: " + error.message);
+
+      window.location.href = "dashboard.html";
+    }
   }
+
+  loadGroup();
 }

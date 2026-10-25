@@ -1,326 +1,188 @@
+
 "use strict";
 
-/*
-    ledger.js
-
-    This file displays all expenses of the current group.
-
-    It allows the user to:
-    1. View all expenses
-    2. See who paid
-    3. See how the expense was split
-    4. Delete an expense
-*/
-
-
-// ================================================================
-// 1. CHECK LOGIN
-// ================================================================
-
 const currentUser = requireLogin();
+const groupId = sessionStorage.getItem("FairShare-active-group");
 
+if (!currentUser) {
+  // requireLogin() handles the redirect.
+} else if (!groupId) {
+  window.location.href = "dashboard.html";
+} else {
+  loadLedger();
+}
 
-if (currentUser) {
+// Convert a backend expense into the format FairShare uses.
+function normalizeExpense(expense) {
+  const shares = {};
 
+  const participants = (expense.participants || []).map(function (person) {
+    shares[person.memberId] = person.shareAmount;
+    return person.memberId;
+  });
 
-  // ============================================================
-  // 2. GET ACTIVE GROUP
-  // ============================================================
+  return {
+    id: expense._id,
+    desc: expense.description,
+    amount: Number(expense.amount),
+    payer: expense.paidBy,
+    mode: expense.splitType,
+    participants: participants,
+    shares: shares,
+    date: expense.createdAt
+      ? new Date(expense.createdAt).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+      })
+      : "Unknown date",
+    createdAt: expense.createdAt
+  };
+}
 
-  const ctx = requireActiveGroup(currentUser);
+// Load the group and expenses from the backend.
+async function loadLedger() {
+  const box = document.getElementById("expense-list");
 
+  try {
+    const groupResult = await apiRequest("/groups/" + groupId);
+    const group = groupResult.data;
 
-  if (ctx) {
-
-
-    // Get groups and current group.
-    let groups = ctx.groups;
-
-    let group = ctx.group;
-
-
-    // ========================================================
-    // 3. NAVBAR
-    // ========================================================
-
-    renderNavbar(
-      currentUser,
-      "ledger",
-      group
-    );
-
+    renderNavbar(currentUser, "ledger", group);
     showFlashIfAny();
 
+    const expenseResult = await apiRequest(
+      "/expenses?groupId=" + encodeURIComponent(groupId)
+    );
 
-    // ========================================================
-    // 4. SAVE DATA
-    // ========================================================
+    const rawExpenses = expenseResult.data || [];
 
-    function persist() {
+    const ledgerGroup = {
+      ...group,
+      expenses: rawExpenses.map(normalizeExpense),
+      settlements: []
+    };
 
-      saveUserGroups(
-        currentUser.id,
-        groups
-      );
+    updateSummary(ledgerGroup.expenses);
+    renderExpenses(ledgerGroup);
+
+  } catch (error) {
+    if (box) {
+      box.textContent = error.message || "Could not load expenses.";
     }
+  }
+}
 
+// Update the three summary cards.
+function updateSummary(expenses) {
+  const countElement = document.getElementById("ledger-count");
+  const totalElement = document.getElementById("ledger-total");
+  const newestElement = document.getElementById("ledger-newest");
 
-    // ========================================================
-    // 5. DISPLAY EXPENSES
-    // ========================================================
+  const total = expenses.reduce(function (sum, expense) {
+    return sum + expense.amount;
+  }, 0);
 
-    function renderExpenses() {
+  countElement.textContent = String(expenses.length);
+  totalElement.textContent = fmt(total);
 
-      let box =
-        document.getElementById(
-          "expense-list"
-        );
+  // Find the newest expense using its original database timestamp.
+  let newestExpense = null;
 
+  expenses.forEach(function (expense) {
+    if (
+      !newestExpense ||
+      new Date(expense.createdAt) > new Date(newestExpense.createdAt)
+    ) {
+      newestExpense = expense;
+    }
+  });
 
-      // ====================================================
-      // NO EXPENSES
-      // ====================================================
+  newestElement.textContent = newestExpense
+    ? newestExpense.date
+    : "—";
+}
 
-      if (group.expenses.length === 0) {
+// Display the expense list.
+function renderExpenses(group) {
+  const box = document.getElementById("expense-list");
 
-        box.innerHTML =
-          '<div class="empty-state">' +
+  if (!box) return;
 
-          "<b>No expenses yet</b>" +
+  if (group.expenses.length === 0) {
+    box.innerHTML =
+      '<div class="empty-state">' +
+      "<b>No expenses yet</b>" +
+      "Head to Add expense to log your first bill." +
+      "</div>";
+    return;
+  }
 
-          "Head to Add expense to log " +
-          "your first bill." +
+  // Sort by the original timestamp, newest first.
+  const sorted = group.expenses.slice().sort(function (a, b) {
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
 
-          "</div>";
+  let rows = "";
 
+  sorted.forEach(function (expense) {
+    const who = expense.participants.length > 0
+      ? "Split among " + expense.participants.length +
+      " of " + group.members.length
+      : "No participants";
+
+    rows +=
+      '<div class="expense">' +
+      '<div class="desc">' + escapeHTML(expense.desc) + "</div>" +
+      '<div class="amt">' + fmt(expense.amount) + "</div>" +
+      '<button class="btn-danger-sm del" data-del-expense="' +
+      escapeHTML(expense.id) + '">' +
+      "Delete" +
+      "</button>" +
+      '<div class="meta">' +
+      escapeHTML(expense.payer) +
+      " paid · " + escapeHTML(expense.date) +
+      '<span class="mode">' + escapeHTML(expense.mode) + "</span>" +
+      '<span class="who">' + escapeHTML(who) + "</span>" +
+      "</div>" +
+      "</div>";
+  });
+
+  box.innerHTML = rows;
+
+  // Delete an expense through the backend.
+  box.querySelectorAll("[data-del-expense]").forEach(function (button) {
+    button.addEventListener("click", async function () {
+      const expenseId = button.dataset.delExpense;
+
+      if (!confirm("Are you sure you want to delete this expense?")) {
         return;
       }
 
+      button.disabled = true;
 
-      // ====================================================
-      // SORT EXPENSES
-      // ====================================================
+      try {
+        await apiRequest("/expenses/" + encodeURIComponent(expenseId), {
+          method: "DELETE"
+        });
 
-      /*
-          We create a copy of the expenses array
-          before sorting it.
+        await loadLedger();
+        toast("Expense removed.");
 
-          This prevents us from changing the
-          original array order.
-      */
-
-      let sorted = [];
-
-
-      for (
-        let i = 0;
-        i < group.expenses.length;
-        i++
-      ) {
-
-        sorted.push(
-          group.expenses[i]
-        );
+      } catch (error) {
+        button.disabled = false;
+        alert(error.message || "Could not delete the expense.");
       }
-
-
-      // Newest expense should appear first.
-      sorted.sort(function (a, b) {
-
-        return b.id - a.id;
-      });
-
-
-      // ====================================================
-      // CREATE EXPENSE HTML
-      // ====================================================
-
-      let rows = "";
-
-
-      for (
-        let i = 0;
-        i < sorted.length;
-        i++
-      ) {
-
-        let expense =
-          sorted[i];
-
-
-        // Get expense information.
-        let id =
-          expense.id;
-
-        let desc =
-          expense.desc;
-
-        let amount =
-          expense.amount;
-
-        let payer =
-          expense.payer;
-
-        let mode =
-          expense.mode;
-
-        let participants =
-          expense.participants;
-
-        let date =
-          expense.date;
-
-
-        // =================================================
-        // FIND NUMBER OF PARTICIPANTS
-        // =================================================
-
-        let who = "";
-
-
-        if (
-          participants &&
-          participants.length > 0
-        ) {
-
-          who =
-            "Split among " +
-            participants.length +
-            " of " +
-            group.members.length;
-        }
-
-
-        // =================================================
-        // CREATE EXPENSE ROW
-        // =================================================
-
-        rows =
-          rows +
-
-          '<div class="expense">' +
-
-          '<div class="desc">' +
-          desc +
-          "</div>" +
-
-          '<div class="amt">' +
-          fmt(amount) +
-          "</div>" +
-
-          '<button class="btn-danger-sm del" ' +
-          'data-del-expense="' +
-          id +
-          '">' +
-
-          "Delete" +
-
-          "</button>" +
-
-          '<div class="meta">' +
-
-          payer +
-          " paid · " +
-          date +
-
-          '<span class="mode">' +
-          mode +
-          "</span>" +
-
-          '<span class="who">' +
-          who +
-          "</span>" +
-
-          "</div>" +
-
-          "</div>";
-      }
-
-
-      // Put all rows on the page.
-      box.innerHTML = rows;
-    }
-
-
-    // ========================================================
-    // 6. DISPLAY EXPENSES WHEN PAGE LOADS
-    // ========================================================
-
-    renderExpenses();
-
-
-    // ========================================================
-    // 7. DELETE EXPENSE
-    // ========================================================
-
-    document
-      .getElementById("expense-list")
-      .addEventListener(
-        "click",
-        function (event) {
-
-
-          // Get the expense ID.
-          let id =
-            event.target.dataset.delExpense;
-
-
-          // If the clicked element isn't
-          // a delete button, do nothing.
-          if (!id) {
-
-            return;
-          }
-
-
-          // Convert ID from string to number.
-          id = Number(id);
-
-
-          // =================================================
-          // CREATE NEW EXPENSE ARRAY
-          // =================================================
-
-          let remainingExpenses = [];
-
-
-          for (
-            let i = 0;
-            i < group.expenses.length;
-            i++
-          ) {
-
-            // Keep every expense except
-            // the one we want to delete.
-            if (
-              group.expenses[i].id !== id
-            ) {
-
-              remainingExpenses.push(
-                group.expenses[i]
-              );
-            }
-          }
-
-
-          // Replace old expense list.
-          group.expenses =
-            remainingExpenses;
-
-
-          // Save updated data.
-          persist();
-
-
-          // Update screen.
-          renderExpenses();
-
-
-          // Show message.
-          toast(
-            "Expense removed."
-          );
-        }
-      );
-  }
+    });
+  });
+}
+
+// Escape text before inserting it into HTML.
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

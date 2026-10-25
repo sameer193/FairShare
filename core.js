@@ -290,25 +290,16 @@ function getUsers() {
 
 // Find the user who is currently logged in.
 function findCurrentUser() {
-
   let sessionId = session.getItem(SESSION_KEY);
 
-  // Nobody is logged in.
   if (!sessionId) {
-
     return null;
   }
 
-  let users = getUsers();
+  let user = readJSON(session, "FairShare-user", null);
 
-  for (let i = 0; i < users.length; i++) {
-
-    let user = users[i];
-
-    if (user.id === sessionId) {
-
-      return user;
-    }
+  if (user && String(user.id) === String(sessionId)) {
+    return user;
   }
 
   return null;
@@ -1393,4 +1384,33 @@ function renderNavbar(user, currentPage, activeGroup) {
 
 
   box.innerHTML = html;
+}
+
+const API_BASE_URL = "http://localhost:5000/api";
+
+// Send a request to the FairShare backend.
+async function apiRequest(endpoint, options = {}) {
+  const token = sessionStorage.getItem("FairShare-token");
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...options.headers
+  };
+
+  if (token) {
+    headers.Authorization = "Bearer " + token;
+  }
+
+  const response = await fetch(API_BASE_URL + endpoint, {
+    ...options,
+    headers
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Backend request failed.");
+  }
+
+  return data;
 }

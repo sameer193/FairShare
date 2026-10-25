@@ -1,519 +1,271 @@
+
 "use strict";
 
-/*
-    members.js
-
-    This file manages members of the current group.
-
-    It allows the user to:
-    1. View members
-    2. Add members
-    3. Add multiple members using commas
-    4. Remove members
-    5. Prevent duplicate members
-    6. Prevent removing members who are used in expenses
-*/
-
-
-// ================================================================
+// ============================================================
 // 1. CHECK LOGIN
-// ================================================================
+// ============================================================
 
 const currentUser = requireLogin();
 
-
-// Continue only if user is logged in.
 if (currentUser) {
 
+  renderNavbar(currentUser, "members", null);
+  showFlashIfAny();
 
-  // ============================================================
-  // 2. GET ACTIVE GROUP
-  // ============================================================
+  const groupId = sessionStorage.getItem("FairShare-active-group");
 
-  const ctx = requireActiveGroup(currentUser);
+  if (!groupId) {
+    window.location.href = "dashboard.html";
+  } else {
 
-
-  if (ctx) {
-
-
-    // Get groups and current group.
-    let groups = ctx.groups;
-
-    let group = ctx.group;
-
+    let group = null;
 
     // ========================================================
-    // 3. NAVBAR
+    // 2. LOAD GROUP FROM BACKEND
     // ========================================================
 
-    renderNavbar(
-      currentUser,
-      "members",
-      group
-    );
+    async function loadGroup() {
 
-    showFlashIfAny();
+      try {
 
+        const result = await apiRequest("/groups/" + groupId);
 
-    // ========================================================
-    // 4. SAVE DATA
-    // ========================================================
+        if (!result.success || !result.data) {
+          throw new Error("Group details could not be loaded.");
+        }
 
-    function persist() {
+        group = result.data;
 
-      saveUserGroups(
-        currentUser.id,
-        groups
-      );
+        renderMembers();
+
+      } catch (error) {
+
+        console.error("Loading group failed:", error);
+
+        showError("member-error", error.message);
+      }
     }
 
-
     // ========================================================
-    // 5. DISPLAY MEMBERS
+    // 3. DISPLAY MEMBERS
     // ========================================================
 
     function renderMembers() {
 
-      let box =
-        document.getElementById("member-list");
+      const box = document.getElementById("member-list");
+      const members = group.members || [];
 
-
-      // If there are no members.
-      if (group.members.length === 0) {
+      if (members.length === 0) {
 
         box.innerHTML =
           '<div class="empty-state">' +
-
           "<b>No members yet</b>" +
-
           "Add the people sharing these bills above." +
-
           "</div>";
 
         return;
       }
 
-
-      // Store all member HTML.
       let chips = "";
 
+      for (let i = 0; i < members.length; i++) {
 
-      // Go through every member.
-      for (
-        let i = 0;
-        i < group.members.length;
-        i++
-      ) {
+        const member = members[i];
 
-        let member =
-          group.members[i];
-
-
-        // Get initials of member.
-        let memberInitials =
-          initials(member);
-
-
-        chips =
-          chips +
-
+        chips +=
           '<span class="chip">' +
-
           '<span class="avatar">' +
-
-          memberInitials +
-
+          escapeHTML(initials(member)) +
           "</span>" +
-
-          member +
-
-          '<button type="button" ' +
-          'data-remove="' +
-          member +
-          '" ' +
-          'aria-label="Remove ' +
-          member +
-          '">' +
-
+          escapeHTML(member) +
+          '<button type="button" data-remove="' +
+          encodeURIComponent(member) +
+          '" aria-label="Remove member">' +
           "×" +
-
           "</button>" +
-
           "</span>";
       }
-
 
       box.innerHTML = chips;
     }
 
+    // Escape text before placing it into HTML.
+    function escapeHTML(value) {
 
-    // Display members when page loads.
-    renderMembers();
+      return String(value).replace(/[&<>"']/g, function (character) {
 
+        const replacements = {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        };
+
+        return replacements[character];
+      });
+    }
 
     // ========================================================
-    // 6. ADD MEMBERS
+    // 4. ADD MEMBERS
     // ========================================================
 
-    function addMembers() {
+    async function addMembers() {
 
+      const input = document.getElementById("member-name");
+      const typedText = input.value.trim();
 
-      // Get input box.
-      let input =
-        document.getElementById("member-name");
-
-
-      // Get what the user typed.
-      let typedText =
-        input.value.trim();
-
-
-      // Check if input is empty.
       if (!typedText) {
 
-        showError(
-          "member-error",
-          "Member name can't be empty."
-        );
+        showError("member-error", "Member name can't be empty.");
 
         return;
       }
 
+      const names = typedText.split(",");
+      const added = [];
+      const skipped = [];
 
-      // ====================================================
-      // SPLIT INPUT BY COMMA
-      // ====================================================
+      for (let i = 0; i < names.length; i++) {
 
-      let names =
-        typedText.split(",");
+        const name = names[i].trim();
 
-
-      let added = [];
-
-      let skipped = [];
-
-
-      // ====================================================
-      // CHECK EVERY NAME
-      // ====================================================
-
-      for (
-        let i = 0;
-        i < names.length;
-        i++
-      ) {
-
-        // Remove extra spaces.
-        let name =
-          names[i].trim();
-
-
-        // Ignore empty names.
         if (!name) {
-
           continue;
         }
 
-
-        // Check name length.
         if (name.length > 24) {
-
-          skipped.push(name);
-
+          skipped.push(name + " (name exceeds 24 characters)");
           continue;
         }
 
+        // Check existing members, including earlier additions.
+        const duplicate = (group.members || []).some(function (member) {
+          return member.toLowerCase() === name.toLowerCase();
+        });
 
-        // =================================================
-        // CHECK IF ALREADY IN GROUP
-        // =================================================
-
-        let alreadyInGroup = false;
-
-
-        for (
-          let j = 0;
-          j < group.members.length;
-          j++
-        ) {
-
-          if (
-            group.members[j].toLowerCase() ===
-            name.toLowerCase()
-          ) {
-
-            alreadyInGroup = true;
-
-            break;
-          }
-        }
-
-
-        // =================================================
-        // CHECK IF SAME NAME WAS TYPED TWICE
-        // =================================================
-
-        let alreadyTyped = false;
-
-
-        for (
-          let j = 0;
-          j < added.length;
-          j++
-        ) {
-
-          if (
-            added[j].toLowerCase() ===
-            name.toLowerCase()
-          ) {
-
-            alreadyTyped = true;
-
-            break;
-          }
-        }
-
-
-        // If duplicate, skip it.
-        if (alreadyInGroup || alreadyTyped) {
-
+        if (duplicate) {
           skipped.push(name);
-
           continue;
         }
 
+        try {
 
-        // Add new member.
-        group.members.push(name);
+          await apiRequest("/members", {
+            method: "POST",
+            body: JSON.stringify({
+              groupId: groupId,
+              name: name
+            })
+          });
 
-        added.push(name);
+          added.push(name);
+
+          // Update local copy so duplicates in the same input
+          // are not sent again.
+          group.members.push(name);
+
+        } catch (error) {
+
+          skipped.push(name + " (" + error.message + ")");
+        }
       }
 
-
-      // ====================================================
-      // SAVE CHANGES
-      // ====================================================
-
-      persist();
-
-
-      // Clear input box.
       input.value = "";
-
-
-      // Put cursor back in input.
       input.focus();
 
-
-      // Update member list.
-      renderMembers();
-
-
-      // ====================================================
-      // SHOW RESULT MESSAGE
-      // ====================================================
+      // Reload the actual saved group from the backend.
+      await loadGroup();
 
       if (added.length > 0 && skipped.length > 0) {
 
         toast(
-          "Added " +
-          added.length +
-          " member" +
-          (added.length > 1 ? "s" : "") +
-          ". Skipped duplicate: " +
-          skipped.join(", ") +
-          "."
+          "Added " + added.length +
+          " member(s). Skipped: " + skipped.join(", ")
         );
 
-      }
+      } else if (added.length > 0) {
 
-      else if (added.length > 0) {
+        toast(
+          "Added " + added.length +
+          (added.length === 1 ? " member." : " members.")
+        );
 
-        if (added.length === 1) {
-
-          toast(
-            "Added " +
-            added[0] +
-            "."
-          );
-
-        } else {
-
-          toast(
-            "Added " +
-            added.length +
-            " members."
-          );
-        }
-
-      }
-
-      else {
+      } else {
 
         showError(
           "member-error",
-          "Already in this group: " +
-          skipped.join(", ") +
-          "."
+          "No members added. " + skipped.join(", ")
         );
       }
     }
 
-
-    // ========================================================
-    // 7. ADD MEMBER BUTTON
-    // ========================================================
-
     document
       .getElementById("btn-add-member")
-      .addEventListener(
-        "click",
-        addMembers
-      );
-
-
-    // ========================================================
-    // 8. PRESS ENTER TO ADD MEMBER
-    // ========================================================
+      .addEventListener("click", addMembers);
 
     document
       .getElementById("member-name")
-      .addEventListener(
-        "keydown",
-        function (event) {
+      .addEventListener("keydown", function (event) {
 
-
-          if (event.key === "Enter") {
-
-            event.preventDefault();
-
-            addMembers();
-          }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addMembers();
         }
-      );
-
-
+      });
 
     // ========================================================
-    // 9. REMOVE MEMBER
+    // 5. REMOVE MEMBER
     // ========================================================
 
     document
       .getElementById("member-list")
-      .addEventListener("click", function (event) {
+      .addEventListener("click", async function (event) {
 
-        // Find the remove button that was clicked.
-        let button = event.target.closest("[data-remove]");
+        const button = event.target.closest("[data-remove]");
 
-        // If the click was not on a remove button, stop.
         if (!button) {
           return;
         }
 
-        let name = button.dataset.remove;
+        const name = decodeURIComponent(button.dataset.remove);
 
-        // ====================================================
-        // CHECK WHETHER MEMBER IS USED IN EXPENSES
-        // ====================================================
+        const answer = confirm(
+          'Remove "' + name + '" from this group?'
+        );
 
-        let involvedInExpense = false;
-
-        let expenses = Array.isArray(group.expenses)
-          ? group.expenses
-          : [];
-
-        for (let i = 0; i < expenses.length; i++) {
-
-          let expense = expenses[i];
-
-          // Check whether this member paid the expense.
-          if (expense.payer === name) {
-            involvedInExpense = true;
-            break;
-          }
-
-          // Check whether this member has a share.
-          if (
-            expense.shares &&
-            Object.prototype.hasOwnProperty.call(
-              expense.shares,
-              name
-            )
-          ) {
-            involvedInExpense = true;
-            break;
-          }
-        }
-
-        // ====================================================
-        // CHECK WHETHER MEMBER IS USED IN SETTLEMENTS
-        // ====================================================
-
-        let involvedInSettlement = false;
-
-        let settlements = Array.isArray(group.settlements)
-          ? group.settlements
-          : [];
-
-        for (let i = 0; i < settlements.length; i++) {
-
-          let settlement = settlements[i];
-
-          // Check whether this member paid someone.
-          if (settlement.from === name) {
-            involvedInSettlement = true;
-            break;
-          }
-
-          // Check whether this member received money.
-          if (settlement.to === name) {
-            involvedInSettlement = true;
-            break;
-          }
-        }
-
-        // ====================================================
-        // PREVENT DELETION IF HISTORY EXISTS
-        // ====================================================
-
-        if (involvedInExpense || involvedInSettlement) {
-
-          showError(
-            "member-error",
-            name +
-            " has existing financial history and " +
-            "cannot be removed. Resolve the related " +
-            "expenses and payments first."
-          );
-
+        if (!answer) {
           return;
         }
 
-        // ====================================================
-        // REMOVE MEMBER
-        // ====================================================
+        button.disabled = true;
 
-        let remainingMembers = [];
+        try {
 
-        for (let i = 0; i < group.members.length; i++) {
+          await apiRequest(
+            "/members/" + encodeURIComponent(name),
+            {
+              method: "DELETE",
+              body: JSON.stringify({
+                groupId: groupId,
+                name: name
+              })
+            }
+          );
 
-          if (group.members[i] !== name) {
-            remainingMembers.push(group.members[i]);
-          }
+          await loadGroup();
+
+          toast(name + " removed.");
+
+        } catch (error) {
+
+          showError("member-error", error.message);
+
+          button.disabled = false;
         }
-
-        // Replace the member list.
-        group.members = remainingMembers;
-
-        // Save changes.
-        persist();
-
-        // Refresh the member list.
-        renderMembers();
-
-        // Show confirmation.
-        toast(name + " removed.");
       });
 
+    // Load the group when the page opens.
+    loadGroup();
   }
 }

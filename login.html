@@ -777,7 +777,7 @@
                 </div>
 
                 <div class="in-box">
-                    <input type="password" placeholder="Password (min 6 characters)" name="password"
+                    <input type="password" placeholder="Password (min 8 characters)" name="password"
                         id="register-password" minlength="6">
 
                     <i class='bx bxs-lock-alt'></i>
@@ -909,10 +909,10 @@
            parameters). No classes, no Promises/async/fetch.
            ============================================================== */
 
-        const USERS_KEY = "FairShare-users";     // localStorage: array of {id, username, email, secret}
-        const SESSION_KEY = "FairShare-session"; // sessionStorage: id of the currently logged-in user
-        // No site-wide counters are kept anywhere — nothing about how many
-        // people use this site, or how often, is tracked or shown to anyone.
+        const API_BASE_URL = "http://localhost:5000/api";
+        const SESSION_KEY = "FairShare-session";
+        const TOKEN_KEY = "FairShare-token";
+        const USER_KEY = "FairShare-user";
 
         const container = document.querySelector('.container');
         const registerBtn = document.querySelector('.register-btn');
@@ -997,7 +997,8 @@
         // duplicate email before adding the new one. Saved to localStorage
         // because an account needs to still be there next time you visit.
         // ---------------------------------------------------------------
-        registerForm.addEventListener('submit', (event) => {
+
+        registerForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             clearFieldError('register-error');
 
@@ -1005,64 +1006,75 @@
             const email = document.getElementById('register-email').value.trim().toLowerCase();
             const password = document.getElementById('register-password').value;
 
-            // ----- validation -----
             if (username.length < 2) {
                 showFieldError('register-error', 'Username must be at least 2 characters.');
                 return;
             }
+
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
                 showFieldError('register-error', 'Enter a valid email address.');
                 return;
             }
+
             if (password.length < 6) {
                 showFieldError('register-error', 'Password must be at least 6 characters.');
                 return;
             }
 
-            const users = getUsers();
+            const submitButton = registerForm.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Registering...';
 
-            // explicit for loop — look for an existing account with this email
-            let alreadyExists = false;
-            for (let i = 0; i < users.length; i++) {
-                if (users[i].email === email) {
-                    alreadyExists = true;
-                    break;
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: username,
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showFieldError(
+                        'register-error',
+                        data.message || 'Registration failed. Please try again.'
+                    );
+                    return;
                 }
+
+                showPopup('Registration successful! You can now log in.');
+                registerForm.reset();
+
+                setTimeout(() => {
+                    closePopup();
+                    container.classList.remove('active');
+                }, 1200);
+
+            } catch (error) {
+                showFieldError(
+                    'register-error',
+                    'Cannot connect to the backend. Make sure your server is running.'
+                );
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Register';
             }
-            if (alreadyExists) {
-                showFieldError('register-error', 'An account with this email already exists.');
-                return;
-            }
-
-            // Build the new user object. A brand-new account gets NO groups,
-            // NO expenses, nothing pre-filled — that data only ever gets
-            // created by the person themselves once they're logged in.
-            const newUser = {
-                id: `u_${Date.now()}`,
-                username: username,
-                email: email,
-                secret: scramble(password),
-                createdAt: Date.now(),
-            };
-
-            users.push(newUser);   // array method: add to the end of the array
-            saveUsers(users);
-
-            showPopup("Registration successful! Redirecting you to login…");
-            registerForm.reset();
-
-            setTimeout(() => {
-                closePopup();
-                container.classList.remove('active');
-            }, 1200);
         });
+
 
         // ---------------------------------------------------------------
         // LOGIN — for...of loop with break, checking each stored user in
         // turn until a matching email + password combination is found.
         // The session itself goes in sessionStorage, not localStorage.
         // ---------------------------------------------------------------
-        loginForm.addEventListener('submit', (event) => {
+
+        loginForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             clearFieldError('login-error');
 
@@ -1074,32 +1086,71 @@
                 return;
             }
 
-            const users = getUsers();
-            const scrambledPassword = scramble(password);
-            let matchedUser = null;
+            const submitButton = loginForm.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Logging in...';
 
-            for (const user of users) {
-                if (user.email === email && user.secret === scrambledPassword) {
-                    matchedUser = user;
-                    break; // stop looping — we already found our match
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showFieldError(
+                        'login-error',
+                        data.message || 'Incorrect email or password.'
+                    );
+                    return;
                 }
+
+                
+                if (!data.success || !data.token || !data.data) {
+                    showFieldError(
+                        'login-error',
+                        data.message || 'Login response is missing the required information.'
+                    );
+                    return;
+                }
+
+                const loggedInUser = {
+                    id: data.data.id,
+                    username: data.data.name,
+                    email: data.data.email
+                };
+
+                sessionStorage.setItem(TOKEN_KEY, data.token);
+                sessionStorage.setItem(USER_KEY, JSON.stringify(loggedInUser));
+                sessionStorage.setItem(SESSION_KEY, loggedInUser.id);
+
+
+                showPopup('Login successful! Redirecting to your dashboard...');
+
+                loginForm.reset();
+
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 800);
+
+            } catch (error) {
+                showFieldError(
+                    'login-error',
+                    'Cannot connect to the backend. Make sure your server is running.'
+                );
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Login';
             }
-
-            if (!matchedUser) {
-                showFieldError('login-error', 'Incorrect email or password.');
-                return;
-            }
-
-            // Session lives in sessionStorage: closing this tab ends it.
-            sessionStorage.setItem(SESSION_KEY, matchedUser.id);
-
-            showPopup(`Welcome back, ${matchedUser.username}!`);
-            loginForm.reset();
-
-            setTimeout(() => {
-                window.location.href = "dashboard.html";
-            }, 800);
         });
+
 
         // ---------------------------------------------------------------
         // FORGOT PASSWORD — same for...of + break loop technique, reused

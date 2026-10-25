@@ -1,280 +1,240 @@
+
 "use strict";
 
 /*
     dashboard.js
 
     This file controls the FairShare Dashboard.
-
-    It does four main things:
-    1. Shows dashboard statistics
-    2. Shows user's groups
-    3. Creates a new group
-    4. Opens an existing group
+    Groups are now loaded and created through the backend API.
 */
-
-
-// ================================================================
-// 1. CHECK LOGIN
-// ================================================================
 
 const currentUser = requireLogin();
 
-
-// Continue only if a user is logged in.
 if (currentUser) {
 
-
   // ============================================================
-  // 2. SHOW NAVBAR
+  // 1. SHOW NAVBAR
   // ============================================================
 
   renderNavbar(currentUser, "dashboard", null);
-
   showFlashIfAny();
 
-
-  // Get all groups belonging to this user.
-  let groups = getUserGroups(currentUser.id);
-
+  // Groups will be loaded from the backend.
+  let groups = [];
 
   // ============================================================
-  // 3. SHOW DASHBOARD STATISTICS
+  // 2. SHOW DASHBOARD STATISTICS
   // ============================================================
 
   function renderStats() {
 
     let totalSpent = 0;
-
     let totalExpenses = 0;
-
     let totalTransfers = 0;
 
-
-    // Go through every group.
     for (let i = 0; i < groups.length; i++) {
 
       let group = groups[i];
 
+      let expenses = group.expenses || [];
 
-      // Count expenses.
-      totalExpenses =
-        totalExpenses + group.expenses.length;
+      totalExpenses += expenses.length;
 
-
-      // Add the amount of every expense.
-      for (let j = 0; j < group.expenses.length; j++) {
-
-        let expense = group.expenses[j];
-
-        totalSpent =
-          totalSpent + expense.amount;
+      for (let j = 0; j < expenses.length; j++) {
+        totalSpent += expenses[j].amount;
       }
 
+      let balances = computeBalances({
+        ...group,
+        expenses: expenses,
+        settlements: group.settlements || []
+      });
 
-      // Calculate this group's balances.
-      let balances = computeBalances(group);
-
-
-      // Find how many transfers are needed.
       let transfers = optimizeSettlement(balances);
 
-
-      totalTransfers =
-        totalTransfers + transfers.length;
+      totalTransfers += transfers.length;
     }
 
-
-    // Show greeting.
     const greeting = document.getElementById("greeting");
 
-    const displayName = (currentUser.name || currentUser.username || "there")
+    const displayName = (
+      currentUser.name ||
+      currentUser.username ||
+      "there"
+    )
       .replace(/[_\d]+/g, " ")
       .replace(/\s+/g, " ")
       .trim();
 
-    greeting.textContent = `Hi ${displayName || "there"} — here's where your money stands.`;
+    greeting.textContent =
+      `Hi ${displayName || "there"} — here's where your money stands.`;
 
-
-    // ========================================================
-    // CREATE STATISTICS
-    // ========================================================
-
-    let stats = [
-
+    const stats = [
       {
         label: "Total spent",
         value: fmt(totalSpent)
       },
-
       {
         label: "Your groups",
         value: groups.length
       },
-
       {
         label: "Expenses",
         value: totalExpenses
       },
-
       {
         label: "Settle-up transfers",
         value: totalTransfers
       }
     ];
 
-
-    // Create HTML for the statistics.
     let cells = "";
-
 
     for (let i = 0; i < stats.length; i++) {
 
       let stat = stats[i];
 
-
-      cells =
-        cells +
-
+      cells +=
         '<div class="stat">' +
-
-        "<b>" +
-        stat.value +
-        "</b>" +
-
-        "<small>" +
-        stat.label +
-        "</small>" +
-
+        "<b>" + stat.value + "</b>" +
+        "<small>" + stat.label + "</small>" +
         "</div>";
     }
 
-
-    document.getElementById("stat-grid").innerHTML =
-      cells;
+    document.getElementById("stat-grid").innerHTML = cells;
   }
 
-
-  // ================================================================
-  // 4. SHOW GROUPS
-  // ================================================================
+  // ============================================================
+  // 3. SHOW GROUPS
+  // ============================================================
 
   function renderGroups() {
 
-    let box =
-      document.getElementById("group-grid");
+    const box = document.getElementById("group-grid");
 
-
-    // If there are no groups.
     if (groups.length === 0) {
 
       box.innerHTML =
         '<div class="empty-state">' +
-
         "<b>No groups yet</b>" +
-
-        "Create your first group above to start " +
-        "splitting bills." +
-
+        "Create your first group above to start splitting bills." +
         "</div>";
 
       return;
     }
 
-
-    // Store all group cards.
     let cards = "";
 
-
-    // Go through every group.
     for (let i = 0; i < groups.length; i++) {
 
       let group = groups[i];
 
+      let expenses = group.expenses || [];
+      let members = group.members || [];
+
       let total = 0;
 
-
-      // Calculate total money spent in this group.
-      for (let j = 0; j < group.expenses.length; j++) {
-
-        total =
-          total + group.expenses[j].amount;
+      for (let j = 0; j < expenses.length; j++) {
+        total += expenses[j].amount;
       }
 
-
-      // Create group card.
-      cards =
-        cards +
-
+      cards +=
         '<button type="button" ' +
         'class="group-card" ' +
-        'data-open-group="' +
-        group.id +
-        '">' +
+        'data-open-group="' + group._id + '">' +
 
-        "<b>" +
-        group.name +
-        "</b>" +
+        "<b>" + escapeHTML(group.name) + "</b>" +
 
         '<span class="g-meta">' +
-
-        group.members.length +
-        " members · " +
-
-        group.expenses.length +
-        " expenses" +
-
+        members.length + " members · " +
+        expenses.length + " expenses" +
         "</span>" +
 
         '<div class="g-total">' +
-
         fmt(total) +
-
         "</div>" +
 
         "</button>";
     }
 
-
     box.innerHTML = cards;
   }
 
+  // Escape group names before inserting them into HTML.
+  function escapeHTML(value) {
 
-  // ================================================================
-  // 5. RENDER DASHBOARD
-  // ================================================================
+    return String(value).replace(/[&<>"']/g, function (character) {
+
+      const replacements = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      };
+
+      return replacements[character];
+    });
+  }
+
+  // ============================================================
+  // 4. RENDER DASHBOARD
+  // ============================================================
 
   function render() {
-
     renderStats();
-
     renderGroups();
   }
 
+  // ============================================================
+  // 5. LOAD GROUPS FROM BACKEND
+  // ============================================================
 
-  // Display everything when page loads.
-  render();
+  async function loadGroups() {
 
+    const box = document.getElementById("group-grid");
 
-  // ================================================================
+    box.innerHTML = "Loading your groups...";
+
+    try {
+
+      const result = await apiRequest("/groups");
+
+      if (!result.success || !Array.isArray(result.data)) {
+        throw new Error("The backend returned an unexpected groups response.");
+      }
+
+      groups = result.data;
+
+      render();
+
+    } catch (error) {
+
+      box.innerHTML =
+        '<div class="empty-state">' +
+        "<b>Could not load groups</b>" +
+        escapeHTML(error.message) +
+        "</div>";
+
+      console.error("Loading groups failed:", error);
+    }
+  }
+
+  // Load groups when the dashboard opens.
+  loadGroups();
+
+  // ============================================================
   // 6. CREATE NEW GROUP
-  // ================================================================
+  // ============================================================
 
   document
     .getElementById("btn-create-group")
-    .addEventListener("click", function () {
+    .addEventListener("click", async function () {
 
+      const input = document.getElementById("group-name");
 
-      // Get input box.
-      let input =
-        document.getElementById("group-name");
+      const name = input.value.trim();
 
-
-      // Get the typed group name.
-      let name =
-        input.value.trim();
-
-
-      // Check empty name.
       if (!name) {
 
         showError(
@@ -285,30 +245,18 @@ if (currentUser) {
         return;
       }
 
-
-      // ========================================================
-      // CHECK DUPLICATE GROUP NAME
-      // ========================================================
-
+      // Check for a duplicate group name.
       let duplicate = false;
-
 
       for (let i = 0; i < groups.length; i++) {
 
-        let group = groups[i];
-
-
         if (
-          group.name.toLowerCase() ===
-          name.toLowerCase()
+          groups[i].name.toLowerCase() === name.toLowerCase()
         ) {
-
           duplicate = true;
-
           break;
         }
       }
-
 
       if (duplicate) {
 
@@ -320,54 +268,58 @@ if (currentUser) {
         return;
       }
 
+      const button = document.getElementById("btn-create-group");
 
-      // ========================================================
-      // CREATE GROUP
-      // ========================================================
+      button.disabled = true;
 
-      let newGroup =
-        createGroup(name);
+      try {
 
+        const result = await apiRequest("/groups", {
+          method: "POST",
+          body: JSON.stringify({
+            name: name,
+            members: []
+          })
+        });
 
-      // Add new group to groups array.
-      groups.push(newGroup);
+        if (!result.success || !result.data || !result.data._id) {
+          throw new Error("The backend did not return the new group.");
+        }
 
+        // Save the new group in the dashboard's current list.
+        groups.push(result.data);
 
-      // Save updated groups.
-      saveUserGroups(
-        currentUser.id,
-        groups
-      );
+        // Keep the MongoDB ID as a string.
+        setActiveGroupId(result.data._id);
 
+        input.value = "";
 
-      // Make the new group active.
-      setActiveGroupId(newGroup.id);
+        render();
 
+        setFlash('Group "' + result.data.name + '" created.');
 
-      // Show message on next page.
-      setFlash(
-        'Group "' +
-        name +
-        '" created.'
-      );
+      } catch (error) {
 
+        showError("group-error", error.message);
 
-      // Open group page.
-      window.location.href =
-        "group.html";
+        console.error("Creating group failed:", error);
+
+      } finally {
+
+        button.disabled = false;
+      }
     });
 
-
-  // ================================================================
+  // ============================================================
   // 7. CREATE GROUP USING ENTER KEY
-  // ================================================================
+  // ============================================================
 
   document
     .getElementById("group-name")
     .addEventListener("keydown", function (event) {
 
-
       if (event.key === "Enter") {
+        event.preventDefault();
 
         document
           .getElementById("btn-create-group")
@@ -375,43 +327,26 @@ if (currentUser) {
       }
     });
 
-
-  // ================================================================
+  // ============================================================
   // 8. OPEN EXISTING GROUP
-  // ================================================================
+  // ============================================================
 
   document
     .getElementById("group-grid")
     .addEventListener("click", function (event) {
 
+      const groupButton = event.target.closest("[data-open-group]");
 
-      /*
-          data-open-group contains the ID
-          of the group we clicked.
-      */
-
-      let groupId =
-        event.target.dataset.openGroup;
-
-
-      // If we didn't click a group button,
-      // do nothing.
-      if (!groupId) {
-
+      if (!groupButton) {
         return;
       }
 
+      // Keep the MongoDB ID as a string.
+      const groupId = groupButton.dataset.openGroup;
 
-      // Convert ID from string to number.
-      groupId = Number(groupId);
-
-
-      // Make this group active.
       setActiveGroupId(groupId);
 
-
-      // Open group page.
-      window.location.href =
-        "group.html";
+      // The group page needs its own backend integration next.
+      window.location.href = "group.html";
     });
 }

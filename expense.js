@@ -1,757 +1,261 @@
-"use strict";
 
-/*
-    expense.js
+requireLogin();
 
-    This file handles adding a new expense.
+const currentUser = findCurrentUser();
+let group = null;
+let splitMode = "equal";
 
-    The user can choose:
-    1. Who paid
-    2. Expense amount
-    3. People included in the expense
-    4. How the expense should be split
+const groupId = sessionStorage.getItem("FairShare-active-group");
 
-    Split modes:
-    - Equal
-    - Exact amount
-    - Percentage
-*/
+// Keep member names safe when inserting them into HTML.
+function escapeHTML(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
+function showError(message) {
+  document.getElementById("expense-error").textContent = message;
+}
 
-// ================================================================
-// 1. CHECK LOGIN
-// ================================================================
+function getSelectedParticipants() {
+  return Array.from(
+    document.querySelectorAll("#participant-list input[type='checkbox']:checked")
+  ).map(function (checkbox) {
+    return checkbox.value;
+  });
+}
 
-const currentUser = requireLogin();
+// Load the selected group from the backend.
+async function loadExpensePage() {
+  if (!groupId) {
+    window.location.href = "dashboard.html";
+    return;
+  }
 
+  try {
+    const result = await apiRequest("/groups/" + groupId);
+    group = result.data;
 
-if (currentUser) {
+    renderNavbar(currentUser, "expense", group);
 
-
-  // ============================================================
-  // 2. GET ACTIVE GROUP
-  // ============================================================
-
-  const ctx = requireActiveGroup(currentUser);
-
-
-  if (ctx) {
-
-
-    // Get groups and current group.
-    let groups = ctx.groups;
-
-    let group = ctx.group;
-
-
-    // ========================================================
-    // 3. NAVBAR
-    // ========================================================
-
-    renderNavbar(
-      currentUser,
-      "expense",
-      group
-    );
-
-
-    // ========================================================
-    // 4. DEFAULT SPLIT MODE
-    // ========================================================
-
-    let splitMode = "equal";
-
-
-    // ========================================================
-    // 5. CHECK NUMBER OF MEMBERS
-    // ========================================================
+    if (!group || !Array.isArray(group.members)) {
+      showError("Could not load the group members.");
+      return;
+    }
 
     if (group.members.length < 2) {
-
-      showError(
-        "expense-error",
-
-        "Add at least two members before you can " +
-        "split a bill — head to the Members page first."
-      );
+      document.getElementById("expense-form").style.display = "none";
+      showError("Add at least two members before adding an expense.");
+      return;
     }
 
-
-    // ========================================================
-    // 6. CREATE PAYER DROPDOWN
-    // ========================================================
-
-    let payerOptions = "";
-
-
-    for (
-      let i = 0;
-      i < group.members.length;
-      i++
-    ) {
-
-      let member =
-        group.members[i];
-
-
-      payerOptions =
-        payerOptions +
-
-        '<option value="' +
-        member +
-        '">' +
-
-        member +
-
-        "</option>";
-    }
-
-
-    document.getElementById("exp-payer").innerHTML =
-      payerOptions;
-
-
-    // ========================================================
-    // 7. SHOW PARTICIPANTS
-    // ========================================================
-
-    function renderParticipants() {
-
-      let box =
-        document.getElementById(
-          "participant-list"
-        );
-
-
-      let rows = "";
-
-
-      // Create checkbox for every member.
-      for (
-        let i = 0;
-        i < group.members.length;
-        i++
-      ) {
-
-        let member =
-          group.members[i];
-
-
-        rows =
-          rows +
-
-          '<label class="participant-chip">' +
-
-          '<input type="checkbox" ' +
-          'value="' +
-          member +
-          '" ' +
-          "checked />" +
-
-          member +
-
-          "</label>";
-      }
-
-
-      box.innerHTML = rows;
-    }
-
-
-    // Display participants.
+    renderPayers();
     renderParticipants();
-
-
-    // ========================================================
-    // 8. GET SELECTED PARTICIPANTS
-    // ========================================================
-
-    function getSelectedParticipants() {
-
-
-      // Get all checkboxes.
-      let boxes =
-        document.querySelectorAll(
-          "#participant-list input[type=checkbox]"
-        );
-
-
-      let selected = [];
-
-
-      // Check every checkbox.
-      for (
-        let i = 0;
-        i < boxes.length;
-        i++
-      ) {
-
-        if (boxes[i].checked) {
-
-          selected.push(
-            boxes[i].value
-          );
-        }
-      }
-
-
-      return selected;
-    }
-
-
-    // ========================================================
-    // 9. CREATE EXACT/PERCENTAGE INPUTS
-    // ========================================================
-
-    function renderSplitInputs() {
-
-      let box =
-        document.getElementById(
-          "split-inputs"
-        );
-
-
-      let hint =
-        document.getElementById(
-          "split-hint"
-        );
-
-
-      // Clear old hint.
-      hint.textContent = "";
-
-      hint.className = "split-hint";
-
-
-      // Get selected members.
-      let participants =
-        getSelectedParticipants();
-
-
-      // Equal split does not need extra inputs.
-      if (
-        splitMode === "equal" ||
-        participants.length === 0
-      ) {
-
-        box.innerHTML = "";
-
-        return;
-      }
-
-
-      // Decide whether inputs show ₹ or %.
-      let unit = "₹";
-
-
-      if (splitMode === "percentage") {
-
-        unit = "%";
-      }
-
-
-      let rows = "";
-
-
-      // Create one input for every participant.
-      for (
-        let i = 0;
-        i < participants.length;
-        i++
-      ) {
-
-        let member =
-          participants[i];
-
-
-        rows =
-          rows +
-
-          '<div class="split-row">' +
-
-          "<span>" +
-          member +
-          "</span>" +
-
-          '<input type="number" ' +
-          'step="0.01" ' +
-          'min="0" ' +
-          'placeholder="0" ' +
-          'data-share="' +
-          member +
-          '" ' +
-          'aria-label="' +
-          member +
-          " share in " +
-          unit +
-          '" />' +
-
-          "<b>" +
-          unit +
-          "</b>" +
-
-          "</div>";
-      }
-
-
-      box.innerHTML = rows;
-
-
-      updateSplitHint();
-    }
-
-
-    // ========================================================
-    // 10. UPDATE SPLIT HINT
-    // ========================================================
-
-    function updateSplitHint() {
-
-      let hint =
-        document.getElementById(
-          "split-hint"
-        );
-
-
-      // Equal split doesn't need a hint.
-      if (splitMode === "equal") {
-
-        hint.textContent = "";
-
-        return;
-      }
-
-
-      // Get all amount/percentage inputs.
-      let inputs =
-        document.querySelectorAll(
-          "[data-share]"
-        );
-
-
-      let sum = 0;
-
-
-      // Add all entered values.
-      for (
-        let i = 0;
-        i < inputs.length;
-        i++
-      ) {
-
-        let value =
-          parseFloat(inputs[i].value);
-
-
-        if (!value) {
-
-          value = 0;
-        }
-
-
-        sum = sum + value;
-      }
-
-
-      sum = round2(sum);
-
-
-      // ====================================================
-      // PERCENTAGE MODE
-      // ====================================================
-
-      if (splitMode === "percentage") {
-
-        hint.textContent =
-          "Total: " +
-          sum +
-          "% of 100%";
-
-
-        if (
-          Math.abs(sum - 100) < 0.01
-        ) {
-
-          hint.className =
-            "split-hint good";
-
-        } else {
-
-          hint.className =
-            "split-hint bad";
-        }
-
-
-        return;
-      }
-
-
-      // ====================================================
-      // EXACT AMOUNT MODE
-      // ====================================================
-
-      let amount =
-        parseFloat(
-          document.getElementById(
-            "exp-amount"
-          ).value
-        );
-
-
-      if (!amount) {
-
-        amount = 0;
-      }
-
-
-      hint.textContent =
-        "Entered: " +
-        fmt(sum) +
-        " of " +
-        fmt(amount);
-
-
-      if (
-        Math.abs(sum - amount) < 0.01
-      ) {
-
-        hint.className =
-          "split-hint good";
-
-      } else {
-
-        hint.className =
-          "split-hint bad";
-      }
-    }
-
-
-    // ========================================================
-    // 11. PARTICIPANT CHECKBOX EVENT
-    // ========================================================
-
-    document
-      .getElementById("participant-list")
-      .addEventListener(
-        "change",
-        function () {
-
-          renderSplitInputs();
-
-        }
-      );
-
-
-    // ========================================================
-    // 12. SPLIT MODE BUTTONS
-    // ========================================================
-
-    document
-      .getElementById("split-mode")
-      .addEventListener(
-        "click",
-        function (event) {
-
-
-          /*
-              Find the button that contains
-              data-mode.
-          */
-
-          let button =
-            event.target.closest(
-              "button[data-mode]"
-            );
-
-
-          if (!button) {
-
-            return;
-          }
-
-
-          // Get selected mode.
-          splitMode =
-            button.dataset.mode;
-
-
-          // Get all split buttons.
-          let buttons =
-            document.querySelectorAll(
-              "#split-mode button"
-            );
-
-
-          // Remove active class from all buttons.
-          for (
-            let i = 0;
-            i < buttons.length;
-            i++
-          ) {
-
-            buttons[i].classList.remove(
-              "active"
-            );
-          }
-
-
-          // Add active class to selected button.
-          button.classList.add("active");
-
-
-          // Update input fields.
-          renderSplitInputs();
-        }
-      );
-
-
-    // ========================================================
-    // 13. INPUT EVENT FOR SPLIT VALUES
-    // ========================================================
-
-    document
-      .getElementById("split-inputs")
-      .addEventListener(
-        "input",
-        function () {
-
-          updateSplitHint();
-
-        }
-      );
-
-
-    // ========================================================
-    // 14. AMOUNT INPUT EVENT
-    // ========================================================
-
-    document
-      .getElementById("exp-amount")
-      .addEventListener(
-        "input",
-        function () {
-
-          updateSplitHint();
-
-        }
-      );
-
-
-    // ========================================================
-    // 15. EXPENSE FORM SUBMIT
-    // ========================================================
-
-    document
-      .getElementById("expense-form")
-      .addEventListener(
-        "submit",
-        function (event) {
-
-
-          // Stop normal form submission.
-          event.preventDefault();
-
-
-          // =================================================
-          // CHECK MEMBERS
-          // =================================================
-
-          if (group.members.length < 2) {
-
-            showError(
-              "expense-error",
-              "Add at least two members first."
-            );
-
-            return;
-          }
-
-
-          // =================================================
-          // GET FORM VALUES
-          // =================================================
-
-          let desc =
-            document.getElementById(
-              "exp-desc"
-            ).value.trim();
-
-
-          let amount =
-            parseFloat(
-              document.getElementById(
-                "exp-amount"
-              ).value
-            );
-
-
-          amount = round2(amount);
-
-
-          let payer =
-            document.getElementById(
-              "exp-payer"
-            ).value;
-
-
-          let participants =
-            getSelectedParticipants();
-
-
-          // =================================================
-          // VALIDATION
-          // =================================================
-
-          if (!desc) {
-
-            showError(
-              "expense-error",
-              "Give the expense a description."
-            );
-
-            return;
-          }
-
-
-          if (!amount || amount <= 0) {
-
-            showError(
-              "expense-error",
-              "Amount must be greater than zero."
-            );
-
-            return;
-          }
-
-
-          if (!payer) {
-
-            showError(
-              "expense-error",
-              "Choose who paid."
-            );
-
-            return;
-          }
-
-
-          if (participants.length === 0) {
-
-            showError(
-              "expense-error",
-              "Tick at least one person " +
-              "under \"Split among\"."
-            );
-
-            return;
-          }
-
-
-          // =================================================
-          // GET EXACT/PERCENTAGE VALUES
-          // =================================================
-
-          let inputs = {};
-
-
-          let shareBoxes =
-            document.querySelectorAll(
-              "[data-share]"
-            );
-
-
-          for (
-            let i = 0;
-            i < shareBoxes.length;
-            i++
-          ) {
-
-            let member =
-              shareBoxes[i].dataset.share;
-
-
-            inputs[member] =
-              shareBoxes[i].value;
-          }
-
-
-          // =================================================
-          // BUILD SHARES
-          // =================================================
-
-          let result =
-            buildShares(
-              splitMode,
-              amount,
-              participants,
-              inputs
-            );
-
-
-          // If shares are invalid.
-          if (!result.ok) {
-
-            showError(
-              "expense-error",
-              result.msg
-            );
-
-            return;
-          }
-
-
-          // =================================================
-          // CREATE EXPENSE OBJECT
-          // =================================================
-
-          let expense = {
-
-            id: Date.now(),
-
-            desc: desc,
-
-            amount: amount,
-
-            payer: payer,
-
-            mode: splitMode,
-
-            participants: participants,
-
-            shares: result.shares,
-
-            date:
-              new Date().toLocaleDateString(
-                "en-IN",
-                {
-                  day: "numeric",
-                  month: "short"
-                }
-              )
-          };
-
-
-          // Add expense to group.
-          group.expenses.push(expense);
-
-
-          // Save updated groups.
-          saveUserGroups(
-            currentUser.id,
-            groups
-          );
-
-
-          // Show message.
-          setFlash(
-            "Expense added."
-          );
-
-
-          // Open ledger.
-          window.location.href =
-            "ledger.html";
-        }
-      );
+    renderSplitInputs();
+    updateSplitHint();
+
+  } catch (error) {
+    showError(error.message || "Could not load the group.");
   }
 }
+
+function renderPayers() {
+  const payerSelect = document.getElementById("exp-payer");
+
+  payerSelect.innerHTML = group.members.map(function (member) {
+    return `<option value="${escapeHTML(member)}">${escapeHTML(member)}</option>`;
+  }).join("");
+}
+
+function renderParticipants() {
+  const container = document.getElementById("participant-list");
+
+  container.innerHTML = group.members.map(function (member) {
+    return `
+      <label>
+        <input type="checkbox" value="${escapeHTML(member)}" checked>
+        <span>${escapeHTML(member)}</span>
+      </label>
+    `;
+  }).join("");
+
+  container.querySelectorAll("input[type='checkbox']").forEach(function (checkbox) {
+    checkbox.addEventListener("change", function () {
+      renderSplitInputs();
+      updateSplitHint();
+    });
+  });
+}
+
+function renderSplitInputs() {
+  const container = document.getElementById("split-inputs");
+  const participants = getSelectedParticipants();
+
+  if (participants.length === 0) {
+    container.innerHTML = "<p>Select at least one participant.</p>";
+    return;
+  }
+
+  if (splitMode === "equal") {
+    container.innerHTML = "<p>The expense will be divided equally.</p>";
+    return;
+  }
+
+  const label = splitMode === "exact" ? "Share amount (₹)" : "Percentage (%)";
+
+  container.innerHTML = participants.map(function (member) {
+    return `
+      <label>
+        ${escapeHTML(member)}
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          data-share="${escapeHTML(member)}"
+          aria-label="${escapeHTML(label)} for ${escapeHTML(member)}"
+          placeholder="${escapeHTML(label)}"
+        >
+      </label>
+    `;
+  }).join("");
+
+  container.querySelectorAll("[data-share]").forEach(function (input) {
+    input.addEventListener("input", updateSplitHint);
+  });
+}
+
+function updateSplitHint() {
+  const hint = document.getElementById("split-hint");
+  const amount = Number(document.getElementById("exp-amount").value);
+
+  if (splitMode === "equal") {
+    hint.textContent = "The total will be divided equally among selected participants.";
+    return;
+  }
+
+  let total = 0;
+
+  document.querySelectorAll("#split-inputs [data-share]").forEach(function (input) {
+    if (input.value !== "") {
+      total += Number(input.value);
+    }
+  });
+
+  if (splitMode === "exact") {
+    hint.textContent =
+      "Entered total: ₹" + total.toFixed(2) +
+      " / ₹" + (Number.isFinite(amount) ? amount.toFixed(2) : "0.00");
+  } else {
+    hint.textContent =
+      "Entered percentage: " + total.toFixed(2) + "% / 100%";
+  }
+}
+
+// Handle the Equal, Exact, and Percentage buttons.
+document.querySelectorAll("#split-mode [data-mode]").forEach(function (button) {
+  button.addEventListener("click", function () {
+    splitMode = button.dataset.mode;
+
+    document.querySelectorAll("#split-mode [data-mode]").forEach(function (item) {
+      const active = item === button;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-selected", String(active));
+    });
+
+    renderSplitInputs();
+    updateSplitHint();
+  });
+});
+
+document.getElementById("exp-amount").addEventListener("input", updateSplitHint);
+
+// Save the expense through the backend API.
+document.getElementById("expense-form").addEventListener("submit", async function (event) {
+  event.preventDefault();
+  showError("");
+
+  const submitButton = this.querySelector("button[type='submit']");
+  const description = document.getElementById("exp-desc").value.trim();
+  const amount = Number(document.getElementById("exp-amount").value);
+  const paidBy = document.getElementById("exp-payer").value;
+  const participants = getSelectedParticipants();
+
+  if (!description) {
+    showError("Enter an expense description.");
+    return;
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    showError("Enter an amount greater than zero.");
+    return;
+  }
+
+  if (!paidBy) {
+    showError("Choose who paid for this expense.");
+    return;
+  }
+
+  if (participants.length === 0) {
+    showError("Select at least one participant.");
+    return;
+  }
+
+  const inputs = {};
+
+  document.querySelectorAll("#split-inputs [data-share]").forEach(function (input) {
+    inputs[input.dataset.share] =
+      input.value.trim() === "" ? NaN : Number(input.value);
+  });
+
+  // Use the existing split calculation from core.js.
+  const splitResult = buildShares(
+    splitMode,
+    amount,
+    participants,
+    inputs
+  );
+
+  if (!splitResult.ok) {
+    showError(splitResult.message || "Please check the split amounts.");
+    return;
+  }
+
+  const apiParticipants = participants.map(function (member) {
+    return {
+      memberId: member,
+      shareAmount: splitResult.shares[member]
+    };
+  });
+
+  try {
+    submitButton.disabled = true;
+    submitButton.textContent = "Saving...";
+
+    await apiRequest("/expenses", {
+      method: "POST",
+      body: JSON.stringify({
+        groupId: group._id,
+        description: description,
+        amount: amount,
+        paidBy: paidBy,
+        splitType: splitMode,
+        participants: apiParticipants
+      })
+    });
+
+    setFlash("Expense added successfully.");
+    window.location.href = "ledger.html";
+
+  } catch (error) {
+    showError(error.message || "Could not save the expense.");
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "Add expense";
+  }
+});
+
+loadExpensePage();
