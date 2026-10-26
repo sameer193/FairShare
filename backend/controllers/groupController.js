@@ -1,5 +1,6 @@
 
 const Group = require("../models/Group");
+const User = require("../models/User");
 
 // CREATE a group
 
@@ -31,12 +32,44 @@ const createGroup = async (req, res) => {
             });
         }
 
+        // Find the creator using their user ID.
+        const creator = await User.findById(req.user.userId);
+
+        if (!creator) {
+            return res.status(404).json({
+                success: false,
+                message: "Group creator not found."
+            });
+        }
+
+        // Copy the supplied members to avoid modifying the request array.
+        const groupMembers = Array.isArray(members)
+            ? members.map(member =>
+                typeof member === "string" ? member.trim() : member
+            )
+            : [];
+
+        // Avoid adding the creator twice.
+        const creatorAlreadyAdded = groupMembers.some(
+            member =>
+                typeof member === "string" &&
+                member.toLowerCase() === creator.name.toLowerCase()
+        );
+
+        // Automatically include the creator.
+        if (!creatorAlreadyAdded) {
+            groupMembers.unshift(creator.name);
+        }
+
+        // Create the group with the creator included.
         const group = await Group.create({
             name: name.trim(),
             description:
-                typeof description === "string" ? description.trim() : "",
+                typeof description === "string"
+                    ? description.trim()
+                    : "",
             createdBy: req.user.userId,
-            members: members || []
+            members: groupMembers
         });
 
         return res.status(201).json({
@@ -44,6 +77,7 @@ const createGroup = async (req, res) => {
             message: "Group created successfully.",
             data: group
         });
+
     } catch (error) {
         return res.status(500).json({
             success: false,
@@ -66,6 +100,7 @@ const getGroups = async (req, res) => {
             count: groups.length,
             data: groups
         });
+
     } catch (error) {
         return res.status(500).json({
             success: false,
@@ -95,6 +130,7 @@ const getGroupById = async (req, res) => {
             success: true,
             data: group
         });
+
     } catch (error) {
         const status = error.name === "CastError" ? 400 : 500;
 
@@ -115,7 +151,7 @@ const updateGroup = async (req, res) => {
         const allowedFields = ["name", "description", "members"];
         const updates = {};
 
-        // Accept only fields that are allowed to change
+        // Accept only fields that are allowed to change.
         for (const field of allowedFields) {
             if (Object.prototype.hasOwnProperty.call(req.body, field)) {
                 updates[field] = req.body[field];
@@ -155,10 +191,14 @@ const updateGroup = async (req, res) => {
 
         if (
             updates.members !== undefined &&
-            (!Array.isArray(updates.members) ||
+            (
+                !Array.isArray(updates.members) ||
                 !updates.members.every(
-                    member => typeof member === "string" && member.trim()
-                ))
+                    member =>
+                        typeof member === "string" &&
+                        member.trim()
+                )
+            )
         ) {
             return res.status(400).json({
                 success: false,
@@ -167,7 +207,9 @@ const updateGroup = async (req, res) => {
         }
 
         if (updates.members !== undefined) {
-            updates.members = updates.members.map(member => member.trim());
+            updates.members = updates.members.map(
+                member => member.trim()
+            );
         }
 
         const group = await Group.findOneAndUpdate(
@@ -191,6 +233,7 @@ const updateGroup = async (req, res) => {
             message: "Group updated successfully.",
             data: group
         });
+
     } catch (error) {
         const status = error.name === "CastError" ? 400 : 500;
 
@@ -224,6 +267,7 @@ const deleteGroup = async (req, res) => {
             success: true,
             message: "Group deleted successfully."
         });
+
     } catch (error) {
         const status = error.name === "CastError" ? 400 : 500;
 
