@@ -191,34 +191,89 @@ if (currentUser) {
   // ============================================================
 
   async function loadGroups() {
-
     const box = document.getElementById("group-grid");
 
     box.innerHTML = "Loading your groups...";
 
     try {
+      const [groupResult, expenseResult] = await Promise.all([
+        apiRequest("/groups"),
+        apiRequest("/expenses")
+      ]);
 
-      const result = await apiRequest("/groups");
-
-      if (!result.success || !Array.isArray(result.data)) {
-        throw new Error("The backend returned an unexpected groups response.");
+      if (
+        !groupResult.success ||
+        !Array.isArray(groupResult.data)
+      ) {
+        throw new Error("Could not load groups.");
       }
 
-      groups = result.data;
+      if (
+        !expenseResult.success ||
+        !Array.isArray(expenseResult.data)
+      ) {
+        throw new Error("Could not load expenses.");
+      }
+
+      groups = groupResult.data;
+
+      // Load expenses and settlements for each group.
+      await Promise.all(groups.map(async function (group) {
+        const groupExpenses = expenseResult.data.filter(
+          expense => String(expense.groupId) === String(group._id)
+        );
+
+        const settlementResult = await apiRequest(
+          "/settlements?groupId=" + encodeURIComponent(group._id)
+        );
+
+        if (
+          !settlementResult.success ||
+          !Array.isArray(settlementResult.data)
+        ) {
+          throw new Error("Could not load settlements for " + group.name);
+        }
+
+        // Convert backend expenses to the format expected by core.js.
+        group.expenses = groupExpenses.map(function (expense) {
+          const shares = {};
+          const participants = (expense.participants || []).map(
+            function (person) {
+              shares[person.memberId] = Number(person.shareAmount);
+              return person.memberId;
+            }
+          );
+
+          return {
+            id: expense._id,
+            desc: expense.description,
+            amount: Number(expense.amount),
+            payer: expense.paidBy,
+            mode: expense.splitType,
+            participants: participants,
+            shares: shares,
+            date: expense.createdAt || ""
+          };
+        });
+
+        group.settlements = settlementResult.data;
+      }));
 
       render();
 
     } catch (error) {
-
       box.innerHTML =
         '<div class="empty-state">' +
-        "<b>Could not load groups</b>" +
+        "<b>Could not load dashboard</b>" +
         escapeHTML(error.message) +
         "</div>";
 
-      console.error("Loading groups failed:", error);
+      console.error("Loading dashboard failed:", error);
     }
   }
+
+
+
 
   // Load groups when the dashboard opens.
   loadGroups();
