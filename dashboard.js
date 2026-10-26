@@ -286,17 +286,17 @@ if (currentUser) {
           throw new Error("The backend did not return the new group.");
         }
 
-        // Save the new group in the dashboard's current list.
-        groups.push(result.data);
-
-        // Keep the MongoDB ID as a string.
+        // Save the new group's MongoDB ID.
         setActiveGroupId(result.data._id);
 
+        // Clear the input.
         input.value = "";
 
-        render();
-
+        // Show a success message on the group page.
         setFlash('Group "' + result.data.name + '" created.');
+
+        // Open the newly created group.
+        window.location.href = "group.html";
 
       } catch (error) {
 
