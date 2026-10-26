@@ -35,7 +35,8 @@ if (currentUser) {
         }
 
         group = result.data;
-
+        // Show the navbar with the actual group name.
+        renderNavbar(currentUser, "members", group);
         renderMembers();
 
       } catch (error) {
