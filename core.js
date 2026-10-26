@@ -392,7 +392,7 @@ function createGroup(name) {
 // Get the ID of the group currently selected.
 function getActiveGroupId() {
 
-  let value = session.getItem(ACTIVE_GROUP_KEY);
+  const value = session.getItem(ACTIVE_GROUP_KEY);
 
   if (value) {
 

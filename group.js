@@ -161,9 +161,20 @@ if (currentUser) {
 
       document.getElementById("stat-grid").innerHTML = cells;
 
+      // Only the group owner can see the delete button.
+      const deleteButton = document.getElementById("btn-del-group");
+
+      if (deleteButton) {
+        const isOwner =
+          String(group.createdBy) === String(currentUser.id);
+
+        deleteButton.hidden = !isOwner;
+      }
+
       // ======================================================
       // 8. DELETE GROUP THROUGH BACKEND
       // ======================================================
+      
 
       document
         .getElementById("btn-del-group")
