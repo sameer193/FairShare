@@ -22,9 +22,6 @@ if (currentUser) {
   // Groups will be loaded from the backend.
   let groups = [];
 
-  // ============================================================
-  // 2. SHOW DASHBOARD STATISTICS
-  // ============================================================
 
   function renderStats() {
 
@@ -396,12 +393,10 @@ if (currentUser) {
         return;
       }
 
-      // Keep the MongoDB ID as a string.
       const groupId = groupButton.dataset.openGroup;
 
       setActiveGroupId(groupId);
 
-      // The group page needs its own backend integration next.
       window.location.href = "group.html";
     });
 }
