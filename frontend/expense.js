@@ -173,7 +173,7 @@ document.querySelectorAll("#split-mode [data-mode]").forEach(function (button) {
 
 document.getElementById("exp-amount").addEventListener("input", updateSplitHint);
 
-// Save the expense through the backend API.
+// Save the expense through a backend API.
 document.getElementById("expense-form").addEventListener("submit", async function (event) {
   event.preventDefault();
   showError("");
