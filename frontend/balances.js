@@ -1,4 +1,3 @@
-
 "use strict";
 
 const currentUser = requireLogin();
@@ -13,7 +12,7 @@ if (!currentUser) {
 }
 
 // Convert backend expenses into the format
-// expected by computeBalances() in core.js
+// expected by computeBalances() in core.js.
 function normalizeExpense(expense) {
   const shares = {};
 
