@@ -41,6 +41,28 @@ The main objective is to reduce the **number of transactions required to settle 
 
 ```text
 FairShare/
+├── frontend/
+│   ├── balances.html
+│   ├── balances.js
+│   ├── core.js
+│   ├── dashboard.html
+│   ├── dashboard.js
+│   ├── expense.html
+│   ├── expense.js
+│   ├── group.html
+│   ├── group.js
+│   ├── index.html
+│   ├── landing.css
+│   ├── ledger.html
+│   ├── ledger.js
+│   ├── login.html
+│   ├── members.html
+│   ├── members.js
+│   ├── profile.html
+│   ├── profile.js
+│   ├── settlement.html
+│   ├── settlement.js
+│   └── style.css
 ├── backend/
 │   ├── config/
 │   ├── controllers/
@@ -52,27 +74,6 @@ FairShare/
 │   ├── package.json
 │   ├── package-lock.json
 │   └── server.js
-├── balances.html
-├── balances.js
-├── core.js
-├── dashboard.html
-├── dashboard.js
-├── expense.html
-├── expense.js
-├── group.html
-├── group.js
-├── index.html
-├── landing.css
-├── ledger.html
-├── ledger.js
-├── login.html
-├── members.html
-├── members.js
-├── profile.html
-├── profile.js
-├── settlement.html
-├── settlement.js
-├── style.css
 └── README.md
 ```
 
